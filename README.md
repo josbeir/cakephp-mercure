@@ -9,6 +9,8 @@
 
 Push real-time updates to clients using the Mercure protocol.
 
+[![Mercure](https://mercure.rocks/static/logo.svg)](https://mercure.rocks/)
+
 ## Table of Contents
 
 - [Overview](#overview)
@@ -291,22 +293,6 @@ public function view($id)
 ```
 
 The cookie must be set before establishing the EventSource connection. The Mercure hub and your CakePHP application should share the same domain (different subdomains are allowed).
-
-Clear authorization cookies when users log out:
-
-```php
-// In a controller
-public function logout()
-{
-    $response = Authorization::clearCookie($this->response);
-
-    // Continue with logout logic
-    return $response;
-}
-
-// Or in a template
-<?php $this->Mercure->clearAuthorization(); ?>
-```
 
 ## Advanced Configuration
 
