@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/github/josbeir/cakephp-mercure/graph/badge.svg?token=4VGWJQTWH5)](https://codecov.io/github/josbeir/cakephp-mercure)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PHP Version](https://img.shields.io/badge/php-8.2%2B-blue.svg)](https://www.php.net/releases/8.2/en.php)
-[![Packagist Downloads](https://img.shields.io/packagist/dt/josbeir/cakephp-mercure.svg)](https://packagist.org/packages/josbeir/cakephp-mercure)
+[![Packagist Downloads](https://img.shields.io/packagist/dt/josbeir/cakephp-mercure)](https://packagist.org/packages/josbeir/cakephp-mercure)
 
 # CakePHP Mercure Plugin
 
