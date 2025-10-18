@@ -8,6 +8,10 @@ use Cake\TestSuite\TestCase;
 use Mercure\Exception\MercureException;
 use Mercure\Publisher;
 use Mercure\Service\PublisherService;
+use Mercure\Test\Fixture\CustomTokenFactory;
+use Mercure\Test\Fixture\CustomTokenProvider;
+use Mercure\Test\Fixture\InvalidTokenFactory;
+use Mercure\Test\Fixture\InvalidTokenProvider;
 use Mercure\TestSuite\MockPublisher;
 use Mercure\Update;
 
@@ -315,5 +319,216 @@ class PublisherTest extends TestCase
         $this->assertCount(2, $mock->getUpdates());
         $this->assertSame('data1', $mock->getUpdates()[0]->getData());
         $this->assertSame('data2', $mock->getUpdates()[1]->getData());
+    }
+
+    /**
+     * Test getInstance with custom token provider class
+     */
+    public function testGetInstanceWithCustomTokenProvider(): void
+    {
+        Configure::write('Mercure', [
+            'url' => 'http://localhost:3000/.well-known/mercure',
+            'jwt' => [
+                'provider' => CustomTokenProvider::class,
+            ],
+        ]);
+
+        $instance = Publisher::getInstance();
+
+        $this->assertInstanceOf(PublisherService::class, $instance);
+    }
+
+    /**
+     * Test getInstance throws exception with non-existent provider class
+     */
+    public function testGetInstanceThrowsExceptionWithNonExistentProvider(): void
+    {
+        Configure::write('Mercure', [
+            'url' => 'http://localhost:3000/.well-known/mercure',
+            'jwt' => [
+                'provider' => 'NonExistent\TokenProvider',
+            ],
+        ]);
+
+        $this->expectException(MercureException::class);
+        $this->expectExceptionMessage("Token provider class 'NonExistent\\TokenProvider' not found");
+
+        Publisher::getInstance();
+    }
+
+    /**
+     * Test getInstance throws exception when provider doesn't implement interface
+     */
+    public function testGetInstanceThrowsExceptionWithInvalidProvider(): void
+    {
+        Configure::write('Mercure', [
+            'url' => 'http://localhost:3000/.well-known/mercure',
+            'jwt' => [
+                'provider' => InvalidTokenProvider::class,
+            ],
+        ]);
+
+        $this->expectException(MercureException::class);
+        $this->expectExceptionMessage('Token provider must implement TokenProviderInterface');
+
+        Publisher::getInstance();
+    }
+
+    /**
+     * Test getInstance with custom token factory class
+     */
+    public function testGetInstanceWithCustomTokenFactory(): void
+    {
+        Configure::write('Mercure', [
+            'url' => 'http://localhost:3000/.well-known/mercure',
+            'jwt' => [
+                'secret' => 'test-secret-key',
+                'factory' => CustomTokenFactory::class,
+                'algorithm' => 'HS256',
+            ],
+        ]);
+
+        $instance = Publisher::getInstance();
+
+        $this->assertInstanceOf(PublisherService::class, $instance);
+    }
+
+    /**
+     * Test getInstance throws exception with non-existent factory class
+     */
+    public function testGetInstanceThrowsExceptionWithNonExistentFactory(): void
+    {
+        Configure::write('Mercure', [
+            'url' => 'http://localhost:3000/.well-known/mercure',
+            'jwt' => [
+                'secret' => 'test-secret-key',
+                'factory' => 'NonExistent\TokenFactory',
+            ],
+        ]);
+
+        $this->expectException(MercureException::class);
+        $this->expectExceptionMessage("Token factory class 'NonExistent\\TokenFactory' not found");
+
+        Publisher::getInstance();
+    }
+
+    /**
+     * Test getInstance throws exception when factory doesn't implement interface
+     */
+    public function testGetInstanceThrowsExceptionWithInvalidFactory(): void
+    {
+        Configure::write('Mercure', [
+            'url' => 'http://localhost:3000/.well-known/mercure',
+            'jwt' => [
+                'secret' => 'test-secret-key',
+                'factory' => InvalidTokenFactory::class,
+            ],
+        ]);
+
+        $this->expectException(MercureException::class);
+        $this->expectExceptionMessage('Token factory must implement TokenFactoryInterface');
+
+        Publisher::getInstance();
+    }
+
+    /**
+     * Test getInstance with additional JWT claims
+     */
+    public function testGetInstanceWithAdditionalJwtClaims(): void
+    {
+        Configure::write('Mercure', [
+            'url' => 'http://localhost:3000/.well-known/mercure',
+            'jwt' => [
+                'secret' => 'test-secret-key',
+                'algorithm' => 'HS256',
+                'publish' => ['https://example.com/*'],
+                'subscribe' => ['https://example.com/feeds/*'],
+                'additional_claims' => [
+                    'aud' => 'my-app',
+                    'iss' => 'my-service',
+                ],
+            ],
+        ]);
+
+        $instance = Publisher::getInstance();
+
+        $this->assertInstanceOf(PublisherService::class, $instance);
+    }
+
+    /**
+     * Test getInstance with http_client configuration
+     */
+    public function testGetInstanceWithHttpClientConfig(): void
+    {
+        Configure::write('Mercure', [
+            'url' => 'http://localhost:3000/.well-known/mercure',
+            'jwt' => [
+                'secret' => 'test-secret-key',
+            ],
+            'http_client' => [
+                'timeout' => 30,
+                'verify' => false,
+            ],
+        ]);
+
+        $instance = Publisher::getInstance();
+
+        $this->assertInstanceOf(PublisherService::class, $instance);
+    }
+
+    /**
+     * Test getInstance with empty JWT secret
+     */
+    public function testGetInstanceThrowsExceptionWithEmptyJwtSecret(): void
+    {
+        Configure::write('Mercure', [
+            'url' => 'http://localhost:3000/.well-known/mercure',
+            'jwt' => [
+                'secret' => '',
+            ],
+        ]);
+
+        $this->expectException(MercureException::class);
+        $this->expectExceptionMessage('JWT secret or token must be configured');
+
+        Publisher::getInstance();
+    }
+
+    /**
+     * Test getPublicUrl returns public_url when configured
+     */
+    public function testGetPublicUrlReturnsPublicUrlWhenConfigured(): void
+    {
+        Configure::write('Mercure.url', 'http://internal.mercure:3000/.well-known/mercure');
+        Configure::write('Mercure.public_url', 'https://mercure.example.com/.well-known/mercure');
+
+        $publicUrl = Publisher::getPublicUrl();
+        $this->assertEquals('https://mercure.example.com/.well-known/mercure', $publicUrl);
+    }
+
+    /**
+     * Test getPublicUrl falls back to url when public_url not set
+     */
+    public function testGetPublicUrlFallsBackToUrlWhenPublicUrlNotSet(): void
+    {
+        Configure::write('Mercure.url', 'http://localhost:3000/.well-known/mercure');
+        Configure::write('Mercure.public_url', null);
+
+        $publicUrl = Publisher::getPublicUrl();
+        $this->assertEquals('http://localhost:3000/.well-known/mercure', $publicUrl);
+    }
+
+    /**
+     * Test getPublicUrl throws exception when neither url nor public_url set
+     */
+    public function testGetPublicUrlThrowsExceptionWhenNotConfigured(): void
+    {
+        Configure::write('Mercure.url', '');
+        Configure::write('Mercure.public_url', '');
+
+        $this->expectException(MercureException::class);
+        $this->expectExceptionMessage('Mercure hub URL is not configured');
+
+        Publisher::getPublicUrl();
     }
 }
