@@ -39,7 +39,7 @@ Push real-time updates to clients using the Mercure protocol.
 
 ## Overview
 
-This plugin provides seamless integration between CakePHP applications and the [Mercure protocol](https://mercure.rocks/), enabling real-time push capabilities for modern web applications.
+This plugin provides integration between CakePHP applications and the [Mercure protocol](https://mercure.rocks/), enabling real-time push capabilities for modern web applications.
 
 Mercure is an open protocol built on top of Server-Sent Events (SSE) that allows you to:
 
@@ -73,6 +73,15 @@ public function bootstrap(): void
 }
 ```
 
+Alternatively, you can add it to `config/plugins.php`:
+
+```php
+// config/plugins.php
+return [
+    'Mercure' => [],
+];
+```
+
 ### Running a Mercure Hub
 
 Mercure requires a hub server to manage persistent SSE connections. Download the official hub from [Mercure.rocks](https://mercure.rocks/).
@@ -88,6 +97,14 @@ docker run -d \
     dunglas/mercure
 ```
 
+If you're using DDEV, you can install the Mercure add-on:
+
+```bash
+ddev get Rindula/ddev-mercure
+```
+
+For more information, see the [DDEV Mercure add-on](https://addons.ddev.com/addons/Rindula/ddev-mercure).
+
 The hub will be available at `http://localhost:3000/.well-known/mercure`.
 
 ## Configuration
@@ -101,6 +118,16 @@ MERCURE_URL=http://localhost:3000/.well-known/mercure
 MERCURE_PUBLIC_URL=http://localhost:3000/.well-known/mercure
 MERCURE_JWT_SECRET=!ChangeThisMercureHubJWTSecretKey!
 ```
+
+> [!NOTE]
+> If your Mercure hub is running on a different subdomain than your CakePHP application, you need to set the cookie domain to the top-level domain:
+>
+> ```env
+> # For cross-subdomain authorization
+> MERCURE_COOKIE_DOMAIN=.example.com
+> ```
+>
+> This allows the authorization cookie to be accessible by both your application and the Mercure hub when they are on different subdomains of the same parent domain.
 
 **Configuration structure:**
 
