@@ -16,7 +16,7 @@ use Mercure\Authorization;
  *
  * Example usage in templates:
  * ```
- * // Symfony-style (recommended): Get URL and authorize in one call
+ * // Recommended: Get URL and authorize in one call
  * $hubUrl = $this->Mercure->url(
  *     topics: ['/books/123'],                    // Topics to subscribe to in EventSource
  *     subscribe: ['/books/123', '/notifications'] // Topics allowed in JWT (can be broader)
@@ -49,7 +49,7 @@ class MercureHelper extends Helper
     /**
      * Get the Mercure hub URL and optionally set authorization cookie
      *
-     * This method combines authorization and URL generation like Symfony's MercureExtension.
+     * This method combines authorization and URL generation in one call.
      * When subscribe topics are provided, it automatically sets the authorization cookie
      * and returns the hub URL with topic parameters.
      *

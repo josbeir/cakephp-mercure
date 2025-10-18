@@ -7,7 +7,6 @@ namespace Mercure\Internal;
  * Query Builder
  *
  * Builds URL-encoded query strings for Mercure hub requests.
- * Similar to Symfony's QueryBuilder implementation.
  *
  * @internal
  */

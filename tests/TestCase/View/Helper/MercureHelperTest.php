@@ -413,11 +413,10 @@ class MercureHelperTest extends TestCase
     }
 
     /**
-     * Test url() matches Symfony MercureExtension behavior
+     * Test url() with both topics and subscribe parameters
      */
-    public function testUrlMatchesSymfonyBehavior(): void
+    public function testUrlWithBothTopicsAndSubscribeParameters(): void
     {
-        // Symfony: mercure_url(['https://example.com/books/{id}'], ['https://example.com/books/{id}'])
         // Should set cookie and return URL with topic
         $url = $this->helper->url(
             ['https://example.com/books/{id}'],

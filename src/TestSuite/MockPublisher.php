@@ -9,8 +9,8 @@ use Mercure\Update;
 /**
  * Mock Publisher for Testing
  *
- * Similar to Symfony's MockHub, this provides a simple way to test
- * code that publishes Mercure updates without making HTTP requests.
+ * Provides a simple way to test code that publishes Mercure updates
+ * without making HTTP requests.
  */
 class MockPublisher implements PublisherInterface
 {
