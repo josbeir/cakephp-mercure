@@ -1,3 +1,10 @@
+[![PHPStan Level 8](https://img.shields.io/badge/PHPStan-level%208-brightgreen)](https://github.com/josbeir/cakephp-mercure)
+[![Build Status](https://github.com/josbeir/cakephp-mercure/actions/workflows/ci.yml/badge.svg)](https://github.com/josbeir/cakephp-mercure/actions)
+[![codecov](https://codecov.io/github/josbeir/cakephp-mercure/graph/badge.svg?token=4VGWJQTWH5)](https://codecov.io/github/josbeir/cakephp-mercure)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PHP Version](https://img.shields.io/badge/php-8.2%2B-blue.svg)](https://www.php.net/releases/8.2/en.php)
+[![Packagist Downloads](https://img.shields.io/packagist/dt/josbeir/cakephp-mercure.svg)](https://packagist.org/packages/josbeir/cakephp-mercure)
+
 # CakePHP Mercure Plugin
 
 Push real-time updates to clients using the Mercure protocol.
@@ -196,6 +203,27 @@ eventSource.onmessage = (event) => {
     console.log('Update received:', event.data);
 };
 </script>
+```
+
+If you need to access the Mercure URL from an external JavaScript file, store it in a data element:
+
+```php
+<script type="application/json" id="mercure-url">
+<?= json_encode(
+    $this->Mercure->url(['https://example.com/books/1']),
+    JSON_UNESCAPED_SLASHES | JSON_HEX_TAG
+) ?>
+</script>
+```
+
+Then retrieve it from your JavaScript:
+
+```javascript
+const url = JSON.parse(document.getElementById('mercure-url').textContent);
+const eventSource = new EventSource(url);
+eventSource.onmessage = (event) => {
+    console.log('Update received:', event.data);
+};
 ```
 
 The special topic `*` matches all updates (use with caution in production).
