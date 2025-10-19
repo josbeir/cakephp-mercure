@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace Mercure\Test\TestCase\Service;
 
+use Cake\Core\Configure;
 use Cake\Http\Response;
 use Cake\TestSuite\TestCase;
+use Mercure\Exception\MercureException;
 use Mercure\Jwt\FirebaseTokenFactory;
 use Mercure\Service\AuthorizationService;
 
@@ -26,6 +28,12 @@ class AuthorizationServiceTest extends TestCase
     {
         parent::setUp();
 
+        // Configure Mercure for discovery tests
+        Configure::write('Mercure', [
+            'url' => 'https://mercure.example.com/.well-known/mercure',
+            'public_url' => 'https://public.mercure.example.com/.well-known/mercure',
+        ]);
+
         $this->tokenFactory = new FirebaseTokenFactory('test-secret', 'HS256');
         $this->service = new AuthorizationService($this->tokenFactory, [
             'name' => 'testAuth',
@@ -35,6 +43,15 @@ class AuthorizationServiceTest extends TestCase
             'httponly' => true,
             'samesite' => 'strict',
         ]);
+    }
+
+    /**
+     * Tear down test case
+     */
+    protected function tearDown(): void
+    {
+        Configure::delete('Mercure');
+        parent::tearDown();
     }
 
     /**
@@ -295,5 +312,103 @@ class AuthorizationServiceTest extends TestCase
         $result = $this->service->clearCookie($response);
 
         $this->assertEquals(204, $result->getStatusCode());
+    }
+
+    /**
+     * Test addDiscoveryHeader adds Link header
+     */
+    public function testAddDiscoveryHeaderAddsLinkHeader(): void
+    {
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader($response);
+
+        $this->assertInstanceOf(Response::class, $result);
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertStringContainsString('public.mercure.example.com', $linkHeader);
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+        $this->assertEquals('<https://public.mercure.example.com/.well-known/mercure>; rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader uses public_url when configured
+     */
+    public function testAddDiscoveryHeaderUsesPublicUrl(): void
+    {
+        Configure::write('Mercure.public_url', 'https://custom.hub.example.com/hub');
+
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader($response);
+
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertEquals('<https://custom.hub.example.com/hub>; rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader falls back to url when public_url not set
+     */
+    public function testAddDiscoveryHeaderFallsBackToUrl(): void
+    {
+        Configure::write('Mercure.public_url', null);
+
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader($response);
+
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertEquals('<https://mercure.example.com/.well-known/mercure>; rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader throws exception when no URL configured
+     */
+    public function testAddDiscoveryHeaderThrowsExceptionWhenNoUrlConfigured(): void
+    {
+        Configure::delete('Mercure');
+
+        $this->expectException(MercureException::class);
+        $this->expectExceptionMessage('Mercure hub URL is not configured');
+
+        $response = new Response();
+        $this->service->addDiscoveryHeader($response);
+    }
+
+    /**
+     * Test addDiscoveryHeader preserves existing headers
+     */
+    public function testAddDiscoveryHeaderPreservesExistingHeaders(): void
+    {
+        $response = new Response();
+        $response = $response->withHeader('X-Custom-Header', 'value');
+
+        $result = $this->service->addDiscoveryHeader($response);
+
+        $this->assertEquals('value', $result->getHeaderLine('X-Custom-Header'));
+        $this->assertNotEmpty($result->getHeaderLine('Link'));
+    }
+
+    /**
+     * Test addDiscoveryHeader can be combined with multiple Link headers
+     */
+    public function testAddDiscoveryHeaderCanBeCombinedWithMultipleLinkHeaders(): void
+    {
+        $response = new Response();
+        $response = $response->withAddedHeader('Link', '<https://example.com/other>; rel="other"');
+
+        $result = $this->service->addDiscoveryHeader($response);
+
+        $linkHeaders = $result->getHeader('Link');
+        $this->assertCount(2, $linkHeaders);
+        $this->assertContains('<https://example.com/other>; rel="other"', $linkHeaders);
+        $this->assertContains('<https://public.mercure.example.com/.well-known/mercure>; rel="mercure"', $linkHeaders);
+    }
+
+    /**
+     * Test addDiscoveryHeader preserves response status
+     */
+    public function testAddDiscoveryHeaderPreservesResponseStatus(): void
+    {
+        $response = new Response(['status' => 201]);
+        $result = $this->service->addDiscoveryHeader($response);
+
+        $this->assertEquals(201, $result->getStatusCode());
     }
 }

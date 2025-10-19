@@ -5,6 +5,7 @@ namespace Mercure;
 
 use Cake\Http\Response;
 use Mercure\Exception\MercureException;
+use Mercure\Internal\ConfigurationHelper;
 use Mercure\Jwt\FirebaseTokenFactory;
 use Mercure\Jwt\TokenFactoryInterface;
 use Mercure\Service\AuthorizationService;
@@ -27,7 +28,7 @@ use Mercure\Service\AuthorizationService;
  * $hubUrl = Authorization::getHubUrl();
  * ```
  */
-class Authorization extends AbstractMercureFacade
+class Authorization
 {
     private static ?AuthorizationInterface $instance = null;
 
@@ -39,8 +40,8 @@ class Authorization extends AbstractMercureFacade
     public static function create(): AuthorizationInterface
     {
         if (!self::$instance instanceof AuthorizationInterface) {
-            $jwtConfig = self::getJwtConfig();
-            $cookieConfig = self::getCookieConfig();
+            $jwtConfig = ConfigurationHelper::getJwtConfig();
+            $cookieConfig = ConfigurationHelper::getCookieConfig();
 
             // Create token factory for subscriber tokens
             $secret = $jwtConfig['secret'] ?? '';
@@ -127,5 +128,45 @@ class Authorization extends AbstractMercureFacade
     public static function getCookieName(): string
     {
         return self::create()->getCookieName();
+    }
+
+    /**
+     * Add the Mercure discovery header to the response
+     *
+     * Adds a Link header with rel="mercure" to advertise the Mercure hub URL.
+     * This allows clients to discover the hub endpoint automatically.
+     *
+     * @param \Cake\Http\Response $response The response object to modify
+     * @return \Cake\Http\Response Modified response with discovery header
+     * @throws \Mercure\Exception\MercureException
+     */
+    public static function addDiscoveryHeader(Response $response): Response
+    {
+        return self::create()->addDiscoveryHeader($response);
+    }
+
+    /**
+     * Get the Mercure hub URL from configuration
+     *
+     * This is the server-side URL used for publishing updates.
+     *
+     * @throws \Mercure\Exception\MercureException
+     */
+    public static function getHubUrl(): string
+    {
+        return ConfigurationHelper::getHubUrl();
+    }
+
+    /**
+     * Get the Mercure public URL from configuration
+     *
+     * This is the client-facing URL for EventSource connections.
+     * Falls back to hub_url if not configured.
+     *
+     * @throws \Mercure\Exception\MercureException
+     */
+    public static function getPublicUrl(): string
+    {
+        return ConfigurationHelper::getPublicUrl();
     }
 }

@@ -13,6 +13,7 @@ use Mercure\Authorization;
  * - Generating hub discovery URLs
  * - Managing authorization cookies for subscribers
  * - Building EventSource connection URLs
+ * - Adding Mercure discovery headers
  *
  * Example usage in templates:
  * ```
@@ -37,6 +38,9 @@ use Mercure\Authorization;
  *     subscribe: ['/users/{userId}/notifications'],
  *     additionalClaims: ['sub' => $userId, 'aud' => 'my-app']
  * );
+ *
+ * // Add Mercure discovery header
+ * $this->Mercure->discover();
  *
  * // Legacy API (still supported):
  * $this->Mercure->authorize(['/books/123', '/notifications']);
@@ -180,5 +184,27 @@ class MercureHelper extends Helper
     public function getCookieName(): string
     {
         return Authorization::getCookieName();
+    }
+
+    /**
+     * Add the Mercure discovery header to the response
+     *
+     * Adds a Link header with rel="mercure" to advertise the Mercure hub URL.
+     * This allows clients to automatically discover the hub endpoint for
+     * establishing EventSource connections.
+     *
+     * Example usage:
+     * ```
+     * // In a template or layout
+     * $this->Mercure->discover();
+     * ```
+     *
+     * @throws \Mercure\Exception\MercureException
+     */
+    public function discover(): void
+    {
+        $response = $this->getView()->getResponse();
+        $response = Authorization::addDiscoveryHeader($response);
+        $this->getView()->setResponse($response);
     }
 }

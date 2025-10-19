@@ -93,5 +93,26 @@ return [
             'name' => env('MERCURE_COOKIE_NAME', 'mercureAuthorization'),
             'domain' => env('MERCURE_COOKIE_DOMAIN'),
         ],
+
+        /**
+         * Mercure Discovery
+         *
+         * The plugin supports Mercure hub discovery via Link headers (rel="mercure").
+         * This allows clients to automatically discover the hub URL.
+         *
+         * Three ways to add discovery headers:
+         *
+         * 1. View Helper (in templates):
+         *    $this->Mercure->discover();
+         *
+         * 2. Controller (manual):
+         *    $response = Authorization::addDiscoveryHeader($response);
+         *
+         * 3. Middleware (automatic for all responses):
+         *    Add to Application.php middleware stack:
+         *    $middlewareQueue->add(new \Mercure\Http\Middleware\MercureDiscoveryMiddleware());
+         *
+         * The discovery header will contain the public_url (or url if not set).
+         */
     ],
 ];

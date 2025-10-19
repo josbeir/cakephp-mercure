@@ -47,4 +47,16 @@ interface AuthorizationInterface
      * Get the cookie name
      */
     public function getCookieName(): string;
+
+    /**
+     * Add the Mercure discovery header to the response
+     *
+     * Adds a Link header with rel="mercure" to advertise the Mercure hub URL.
+     * This allows clients to discover the hub endpoint automatically.
+     *
+     * @param \Cake\Http\Response $response The response object to modify
+     * @return \Cake\Http\Response Modified response with discovery header
+     * @throws \Mercure\Exception\MercureException
+     */
+    public function addDiscoveryHeader(Response $response): Response;
 }

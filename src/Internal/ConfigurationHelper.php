@@ -1,18 +1,21 @@
 <?php
 declare(strict_types=1);
 
-namespace Mercure;
+namespace Mercure\Internal;
 
 use Cake\Core\Configure;
 use Mercure\Exception\MercureException;
 
 /**
- * Abstract Mercure Facade
+ * Configuration Helper
  *
- * Base class for Mercure facade classes (Publisher, Authorization).
- * Provides common configuration management functionality.
+ * Centralized utility for accessing Mercure configuration.
+ * Provides static methods to retrieve configuration values consistently
+ * across the plugin.
+ *
+ * @internal This class is for internal plugin use only
  */
-abstract class AbstractMercureFacade
+class ConfigurationHelper
 {
     /**
      * Get the Mercure hub URL from configuration
@@ -23,7 +26,7 @@ abstract class AbstractMercureFacade
      */
     public static function getHubUrl(): string
     {
-        $config = Configure::read('Mercure', []);
+        $config = self::getConfig();
         $url = $config['url'] ?? $config['hub_url'] ?? '';
 
         if (empty($url)) {
@@ -37,13 +40,13 @@ abstract class AbstractMercureFacade
      * Get the Mercure public URL from configuration
      *
      * This is the client-facing URL for EventSource connections.
-     * Falls back to hub_url if not configured.
+     * Falls back to hub URL if not configured.
      *
      * @throws \Mercure\Exception\MercureException
      */
     public static function getPublicUrl(): string
     {
-        $config = Configure::read('Mercure', []);
+        $config = self::getConfig();
         $publicUrl = $config['public_url'] ?? '';
 
         if (!empty($publicUrl)) {
@@ -59,7 +62,7 @@ abstract class AbstractMercureFacade
      *
      * @return array<string, mixed>
      */
-    protected static function getConfig(): array
+    public static function getConfig(): array
     {
         return Configure::read('Mercure', []);
     }
@@ -69,7 +72,7 @@ abstract class AbstractMercureFacade
      *
      * @return array<string, mixed>
      */
-    protected static function getJwtConfig(): array
+    public static function getJwtConfig(): array
     {
         $config = self::getConfig();
 
@@ -81,7 +84,7 @@ abstract class AbstractMercureFacade
      *
      * @return array<string, mixed>
      */
-    protected static function getCookieConfig(): array
+    public static function getCookieConfig(): array
     {
         $config = self::getConfig();
 
@@ -93,7 +96,7 @@ abstract class AbstractMercureFacade
      *
      * @return array<string, mixed>
      */
-    protected static function getHttpClientConfig(): array
+    public static function getHttpClientConfig(): array
     {
         $config = self::getConfig();
 

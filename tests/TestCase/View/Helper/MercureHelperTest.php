@@ -442,4 +442,154 @@ class MercureHelperTest extends TestCase
         $this->assertStringContainsString('https://public.example.com', $url);
         $this->assertStringContainsString('topic=' . urlencode('/feeds/123'), $url);
     }
+
+    /**
+     * Test discover() adds Link header to response
+     */
+    public function testDiscoverAddsLinkHeaderToResponse(): void
+    {
+        Configure::write('Mercure.public_url', 'https://mercure.example.com/.well-known/mercure');
+
+        $this->helper->discover();
+
+        $response = $this->view->getResponse();
+        $linkHeader = $response->getHeaderLine('Link');
+        $this->assertEquals('<https://mercure.example.com/.well-known/mercure>; rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test discover() uses public_url when configured
+     */
+    public function testDiscoverUsesPublicUrl(): void
+    {
+        Configure::write('Mercure.url', 'http://internal:3000/.well-known/mercure');
+        Configure::write('Mercure.public_url', 'https://public.example.com/.well-known/mercure');
+
+        $this->helper->discover();
+
+        $response = $this->view->getResponse();
+        $linkHeader = $response->getHeaderLine('Link');
+        $this->assertEquals('<https://public.example.com/.well-known/mercure>; rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test discover() falls back to url when public_url not set
+     */
+    public function testDiscoverFallsBackToUrl(): void
+    {
+        Configure::write('Mercure.url', 'https://fallback.example.com/.well-known/mercure');
+        Configure::write('Mercure.public_url', null);
+
+        $this->helper->discover();
+
+        $response = $this->view->getResponse();
+        $linkHeader = $response->getHeaderLine('Link');
+        $this->assertEquals('<https://fallback.example.com/.well-known/mercure>; rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test discover() throws exception when no URL configured
+     */
+    public function testDiscoverThrowsExceptionWhenNoUrlConfigured(): void
+    {
+        Configure::write('Mercure', [
+            'url' => '',
+            'public_url' => '',
+            'jwt' => [
+                'secret' => 'test-secret-key',
+                'algorithm' => 'HS256',
+            ],
+        ]);
+        Authorization::clear();
+
+        $this->expectException(MercureException::class);
+        $this->expectExceptionMessage('Mercure hub URL is not configured');
+
+        $this->helper->discover();
+    }
+
+    /**
+     * Test discover() preserves existing headers
+     */
+    public function testDiscoverPreservesExistingHeaders(): void
+    {
+        $response = $this->view->getResponse();
+        $response = $response->withHeader('X-Custom-Header', 'custom-value');
+
+        $this->view->setResponse($response);
+
+        $this->helper->discover();
+
+        $response = $this->view->getResponse();
+        $this->assertEquals('custom-value', $response->getHeaderLine('X-Custom-Header'));
+        $this->assertNotEmpty($response->getHeaderLine('Link'));
+    }
+
+    /**
+     * Test discover() can be combined with multiple Link headers
+     */
+    public function testDiscoverCanBeCombinedWithMultipleLinkHeaders(): void
+    {
+        $response = $this->view->getResponse();
+        $response = $response->withAddedHeader('Link', '<https://example.com/other>; rel="other"');
+
+        $this->view->setResponse($response);
+
+        $this->helper->discover();
+
+        $response = $this->view->getResponse();
+        $linkHeaders = $response->getHeader('Link');
+        $this->assertCount(2, $linkHeaders);
+        $this->assertContains('<https://example.com/other>; rel="other"', $linkHeaders);
+        $this->assertContains('<https://mercure.example.com/.well-known/mercure>; rel="mercure"', $linkHeaders);
+    }
+
+    /**
+     * Test discover() can be called multiple times
+     */
+    public function testDiscoverCanBeCalledMultipleTimes(): void
+    {
+        $this->helper->discover();
+        $this->helper->discover();
+
+        $response = $this->view->getResponse();
+        $linkHeaders = $response->getHeader('Link');
+
+        // Should have two headers since we called discover() twice
+        $this->assertCount(2, $linkHeaders);
+    }
+
+    /**
+     * Test discover() preserves response status
+     */
+    public function testDiscoverPreservesResponseStatus(): void
+    {
+        $response = new Response(['status' => 201]);
+        $this->view->setResponse($response);
+
+        $this->helper->discover();
+
+        $response = $this->view->getResponse();
+        $this->assertEquals(201, $response->getStatusCode());
+        $this->assertNotEmpty($response->getHeaderLine('Link'));
+    }
+
+    /**
+     * Test discover() can be combined with authorize()
+     */
+    public function testDiscoverCanBeCombinedWithAuthorize(): void
+    {
+        $this->helper->authorize(['/feeds/123']);
+        $this->helper->discover();
+
+        $response = $this->view->getResponse();
+
+        // Check cookie was set
+        $cookies = $response->getCookieCollection();
+        $this->assertTrue($cookies->has('mercureAuth'));
+
+        // Check Link header was added
+        $linkHeader = $response->getHeaderLine('Link');
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+    }
 }

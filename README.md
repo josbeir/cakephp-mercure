@@ -24,6 +24,10 @@ Push real-time updates to clients using the Mercure protocol.
 - [Authorization](#authorization)
   - [Publishing Private Updates](#publishing-private-updates)
   - [Setting Authorization Cookies](#setting-authorization-cookies)
+- [Mercure Discovery](#mercure-discovery)
+  - [Using the View Helper](#using-the-view-helper)
+  - [Using the Facade](#using-the-facade)
+  - [Using Middleware](#using-middleware)
 - [Advanced Configuration](#advanced-configuration)
   - [JWT Token Strategies](#jwt-token-strategies)
   - [HTTP Client Options](#http-client-options)
@@ -34,6 +38,7 @@ Push real-time updates to clients using the Mercure protocol.
   - [Authorization](#authorization-1)
   - [MercureHelper](#mercurehelper)
   - [Update](#update)
+  - [MercureDiscoveryMiddleware](#mercurediscoverymiddleware)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -321,6 +326,80 @@ public function view($id)
 
 The cookie must be set before establishing the EventSource connection. The Mercure hub and your CakePHP application should share the same domain (different subdomains are allowed).
 
+## Mercure Discovery
+
+The Mercure protocol supports automatic hub discovery via HTTP Link headers. This allows clients to discover the hub URL without hardcoding it, making your application more flexible and following the Mercure specification.
+
+### Using the View Helper
+
+Add the discovery header in your templates or layouts:
+
+```php
+// In your layout or template
+<?php $this->Mercure->discover(); ?>
+```
+
+This adds a `Link` header to the response:
+
+```
+Link: <https://mercure.example.com/.well-known/mercure>; rel="mercure"
+```
+
+Clients can then discover the hub URL from the response headers:
+
+```javascript
+fetch('/api/resource')
+    .then(response => {
+        const linkHeader = response.headers.get('Link');
+        // Parse the Link header to extract the Mercure hub URL
+        const match = linkHeader.match(/<([^>]+)>;\s*rel="mercure"/);
+        if (match) {
+            const hubUrl = match[1];
+            const eventSource = new EventSource(hubUrl + '?topic=/api/resource');
+        }
+    });
+```
+
+### Using the Facade
+
+You can also add the discovery header manually from controllers:
+
+```php
+use Mercure\Authorization;
+
+public function index()
+{
+    $response = Authorization::addDiscoveryHeader($this->response);
+    
+    // Your controller logic here
+    
+    return $response;
+}
+```
+
+### Using Middleware
+
+For automatic discovery headers on all responses, add the middleware to your application:
+
+```php
+// In src/Application.php
+use Mercure\Http\Middleware\MercureDiscoveryMiddleware;
+
+public function middleware(MiddlewareQueue $middlewareQueue): MiddlewareQueue
+{
+    $middlewareQueue
+        // ... other middleware
+        ->add(new MercureDiscoveryMiddleware());
+
+    return $middlewareQueue;
+}
+```
+
+The middleware automatically adds the `Link` header with `rel="mercure"` to all responses, making the hub URL discoverable by any client.
+
+> [!TIP]
+> The discovery header uses the `public_url` configuration (or falls back to `url` if not set), ensuring clients always receive the correct publicly-accessible hub URL.
+
 ## Advanced Configuration
 
 ### JWT Token Strategies
@@ -490,6 +569,7 @@ public function testAuthorization(): void
 |--------|---------|-------------|
 | `setCookie(Response $response, array $subscribe, array $additionalClaims)` | `Response` | Set authorization cookie |
 | `clearCookie(Response $response)` | `Response` | Clear authorization cookie |
+| `addDiscoveryHeader(Response $response)` | `Response` | Add Mercure discovery Link header |
 | `getCookieName()` | `string` | Get the configured cookie name |
 | `getHubUrl()` | `string` | Get the hub URL |
 | `getPublicUrl()` | `string` | Get the public hub URL |
@@ -502,6 +582,7 @@ public function testAuthorization(): void
 | `getHubUrl(array $topics, array $options)` | `string` | Get hub URL with optional topics |
 | `authorize(array $subscribe, array $additionalClaims)` | `void` | Set authorization cookie |
 | `clearAuthorization()` | `void` | Clear authorization cookie |
+| `discover()` | `void` | Add Mercure discovery Link header |
 | `getCookieName()` | `string` | Get the cookie name |
 
 ### Update
@@ -540,6 +621,31 @@ new Update(
 | `getId()` | `?string` | Get event ID |
 | `getType()` | `?string` | Get event type |
 | `getRetry()` | `?int` | Get retry value |
+
+### MercureDiscoveryMiddleware
+
+A PSR-15 middleware that automatically adds the Mercure discovery Link header to all responses.
+
+**Usage:**
+
+```php
+// In src/Application.php
+use Mercure\Http\Middleware\MercureDiscoveryMiddleware;
+
+public function middleware(MiddlewareQueue $middlewareQueue): MiddlewareQueue
+{
+    $middlewareQueue->add(new MercureDiscoveryMiddleware());
+    return $middlewareQueue;
+}
+```
+
+The middleware adds a `Link` header to every response:
+
+```
+Link: <https://mercure.example.com/.well-known/mercure>; rel="mercure"
+```
+
+This allows clients to automatically discover the Mercure hub URL without hardcoding it in your application.
 
 ---
 

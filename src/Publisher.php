@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Mercure;
 
 use Mercure\Exception\MercureException;
+use Mercure\Internal\ConfigurationHelper;
 use Mercure\Jwt\FactoryTokenProvider;
 use Mercure\Jwt\FirebaseTokenFactory;
 use Mercure\Jwt\StaticTokenProvider;
@@ -24,7 +25,7 @@ use Mercure\Service\PublisherService;
  * ));
  * ```
  */
-class Publisher extends AbstractMercureFacade
+class Publisher
 {
     private static ?PublisherInterface $instance = null;
 
@@ -36,9 +37,9 @@ class Publisher extends AbstractMercureFacade
     public static function create(): PublisherInterface
     {
         if (!self::$instance instanceof PublisherInterface) {
-            $hubUrl = self::getHubUrl();
+            $hubUrl = ConfigurationHelper::getHubUrl();
             $tokenProvider = self::createTokenProvider();
-            $httpClientConfig = self::getHttpClientConfig();
+            $httpClientConfig = ConfigurationHelper::getHttpClientConfig();
 
             self::$instance = new PublisherService($hubUrl, $tokenProvider, $httpClientConfig);
         }
@@ -53,8 +54,8 @@ class Publisher extends AbstractMercureFacade
      */
     private static function createTokenProvider(): TokenProviderInterface
     {
-        $jwtConfig = self::getJwtConfig();
-        $config = self::getConfig();
+        $jwtConfig = ConfigurationHelper::getJwtConfig();
+        $config = ConfigurationHelper::getConfig();
 
         // Option 1: Custom provider class
         if (isset($jwtConfig['provider'])) {
@@ -136,5 +137,30 @@ class Publisher extends AbstractMercureFacade
     public static function publish(Update $update): bool
     {
         return self::create()->publish($update);
+    }
+
+    /**
+     * Get the Mercure hub URL from configuration
+     *
+     * This is the server-side URL used for publishing updates.
+     *
+     * @throws \Mercure\Exception\MercureException
+     */
+    public static function getHubUrl(): string
+    {
+        return ConfigurationHelper::getHubUrl();
+    }
+
+    /**
+     * Get the Mercure public URL from configuration
+     *
+     * This is the client-facing URL for EventSource connections.
+     * Falls back to hub_url if not configured.
+     *
+     * @throws \Mercure\Exception\MercureException
+     */
+    public static function getPublicUrl(): string
+    {
+        return ConfigurationHelper::getPublicUrl();
     }
 }

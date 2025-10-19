@@ -436,4 +436,130 @@ class AuthorizationTest extends TestCase
 
         Authorization::getPublicUrl();
     }
+
+    /**
+     * Test addDiscoveryHeader adds Link header
+     */
+    public function testAddDiscoveryHeaderAddsLinkHeader(): void
+    {
+        Configure::write('Mercure.public_url', 'https://mercure.example.com/.well-known/mercure');
+
+        $response = new Response();
+        $result = Authorization::addDiscoveryHeader($response);
+
+        $this->assertInstanceOf(Response::class, $result);
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertEquals('<https://mercure.example.com/.well-known/mercure>; rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader uses public_url when configured
+     */
+    public function testAddDiscoveryHeaderUsesPublicUrl(): void
+    {
+        Configure::write('Mercure.url', 'http://internal:3000/.well-known/mercure');
+        Configure::write('Mercure.public_url', 'https://public.example.com/.well-known/mercure');
+        Authorization::clear();
+
+        $response = new Response();
+        $result = Authorization::addDiscoveryHeader($response);
+
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertEquals('<https://public.example.com/.well-known/mercure>; rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader falls back to url when public_url not set
+     */
+    public function testAddDiscoveryHeaderFallsBackToUrl(): void
+    {
+        Configure::write('Mercure.url', 'https://fallback.example.com/.well-known/mercure');
+        Configure::write('Mercure.public_url', null);
+        Authorization::clear();
+
+        $response = new Response();
+        $result = Authorization::addDiscoveryHeader($response);
+
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertEquals('<https://fallback.example.com/.well-known/mercure>; rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader throws exception when no URL configured
+     */
+    public function testAddDiscoveryHeaderThrowsExceptionWhenNoUrlConfigured(): void
+    {
+        Configure::write('Mercure', [
+            'url' => '',
+            'public_url' => '',
+            'jwt' => [
+                'secret' => 'test-secret-key',
+                'algorithm' => 'HS256',
+            ],
+        ]);
+        Authorization::clear();
+
+        $this->expectException(MercureException::class);
+        $this->expectExceptionMessage('Mercure hub URL is not configured');
+
+        $response = new Response();
+        Authorization::addDiscoveryHeader($response);
+    }
+
+    /**
+     * Test addDiscoveryHeader preserves existing headers
+     */
+    public function testAddDiscoveryHeaderPreservesExistingHeaders(): void
+    {
+        $response = new Response();
+        $response = $response->withHeader('X-Custom-Header', 'custom-value');
+
+        $result = Authorization::addDiscoveryHeader($response);
+
+        $this->assertEquals('custom-value', $result->getHeaderLine('X-Custom-Header'));
+        $this->assertNotEmpty($result->getHeaderLine('Link'));
+    }
+
+    /**
+     * Test addDiscoveryHeader can be combined with multiple Link headers
+     */
+    public function testAddDiscoveryHeaderCanBeCombinedWithMultipleLinkHeaders(): void
+    {
+        $response = new Response();
+        $response = $response->withAddedHeader('Link', '<https://example.com/other>; rel="other"');
+
+        $result = Authorization::addDiscoveryHeader($response);
+
+        $linkHeaders = $result->getHeader('Link');
+        $this->assertCount(2, $linkHeaders);
+        $this->assertContains('<https://example.com/other>; rel="other"', $linkHeaders);
+        $this->assertContains('<https://mercure.example.com/.well-known/mercure>; rel="mercure"', $linkHeaders);
+    }
+
+    /**
+     * Test addDiscoveryHeader preserves response status
+     */
+    public function testAddDiscoveryHeaderPreservesResponseStatus(): void
+    {
+        $response = new Response(['status' => 201]);
+        $result = Authorization::addDiscoveryHeader($response);
+
+        $this->assertEquals(201, $result->getStatusCode());
+        $this->assertNotEmpty($result->getHeaderLine('Link'));
+    }
+
+    /**
+     * Test addDiscoveryHeader can be called on instance
+     */
+    public function testAddDiscoveryHeaderCanBeCalledOnInstance(): void
+    {
+        $service = Authorization::create();
+        $response = new Response();
+
+        $result = $service->addDiscoveryHeader($response);
+
+        $this->assertInstanceOf(Response::class, $result);
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+    }
 }
