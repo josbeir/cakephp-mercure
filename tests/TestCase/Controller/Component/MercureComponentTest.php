@@ -14,6 +14,9 @@ use Cake\TestSuite\TestCase;
 use Mercure\Authorization;
 use Mercure\Controller\Component\MercureComponent;
 use Mercure\Exception\MercureException;
+use Mercure\Publisher;
+use Mercure\TestSuite\MockPublisher;
+use Mercure\Update\Update;
 
 /**
  * MercureComponent Test Case
@@ -26,6 +29,8 @@ class MercureComponentTest extends TestCase
 
     private MercureComponent $component;
 
+    private MockPublisher $mockPublisher;
+
     /**
      * Set up test case
      */
@@ -33,8 +38,9 @@ class MercureComponentTest extends TestCase
     {
         parent::setUp();
 
-        // Clear singleton before each test
+        // Clear singletons before each test
         Authorization::clear();
+        Publisher::clear();
 
         // Configure Mercure for tests
         Configure::write('Mercure', [
@@ -48,6 +54,10 @@ class MercureComponentTest extends TestCase
                 'name' => 'mercureAuth',
             ],
         ]);
+
+        // Set up mock publisher BEFORE component initialization
+        $this->mockPublisher = new MockPublisher();
+        Publisher::setInstance($this->mockPublisher);
 
         // Create controller and component
         $request = new ServerRequest();
@@ -65,8 +75,9 @@ class MercureComponentTest extends TestCase
     protected function tearDown(): void
     {
         Authorization::clear();
+        Publisher::clear();
         Configure::delete('Mercure');
-        unset($this->component, $this->controller);
+        unset($this->component, $this->controller, $this->mockPublisher);
         parent::tearDown();
     }
 
@@ -536,5 +547,202 @@ class MercureComponentTest extends TestCase
         $cookies = $response->getCookieCollection();
 
         $this->assertTrue($cookies->has('mercureAuth'));
+    }
+
+    /**
+     * Test publish method with Update object
+     */
+    public function testPublishWithUpdateObject(): void
+    {
+        $update = new Update(
+            topics: '/books/123',
+            data: 'test data',
+        );
+
+        $result = $this->component->publish($update);
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test publishJson with single topic and array data
+     */
+    public function testPublishJsonWithSingleTopicAndArrayData(): void
+    {
+        $result = $this->component->publishJson(
+            topics: '/books/123',
+            data: ['status' => 'available', 'quantity' => 10],
+        );
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test publishJson with multiple topics
+     */
+    public function testPublishJsonWithMultipleTopics(): void
+    {
+        $result = $this->component->publishJson(
+            topics: ['/books/123', '/notifications'],
+            data: ['message' => 'Book updated'],
+        );
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test publishJson with private flag
+     */
+    public function testPublishJsonWithPrivateFlag(): void
+    {
+        $result = $this->component->publishJson(
+            topics: '/users/123/private',
+            data: ['secret' => 'data'],
+            private: true,
+        );
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test publishJson with all parameters
+     */
+    public function testPublishJsonWithAllParameters(): void
+    {
+        $result = $this->component->publishJson(
+            topics: ['/books/123', '/notifications'],
+            data: ['status' => 'updated'],
+            private: true,
+            id: 'event-123',
+            type: 'book.updated',
+            retry: 5000,
+        );
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test publishJson with nested data
+     */
+    public function testPublishJsonWithNestedData(): void
+    {
+        $data = [
+            'book' => [
+                'id' => 123,
+                'title' => 'Test Book',
+                'author' => 'Test Author',
+            ],
+            'meta' => [
+                'timestamp' => time(),
+            ],
+        ];
+
+        $result = $this->component->publishJson(
+            topics: '/books/123',
+            data: $data,
+        );
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test publishSimple with plain text
+     */
+    public function testPublishSimpleWithPlainText(): void
+    {
+        $result = $this->component->publishSimple(
+            topics: '/notifications',
+            data: 'Server maintenance in 5 minutes',
+        );
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test publishSimple with single topic
+     */
+    public function testPublishSimpleWithSingleTopic(): void
+    {
+        $result = $this->component->publishSimple(
+            topics: '/alerts',
+            data: 'Warning: High load detected',
+        );
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test publishSimple with multiple topics
+     */
+    public function testPublishSimpleWithMultipleTopics(): void
+    {
+        $result = $this->component->publishSimple(
+            topics: ['/alerts', '/notifications'],
+            data: 'System update completed',
+        );
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test publishSimple with private flag
+     */
+    public function testPublishSimpleWithPrivateFlag(): void
+    {
+        $result = $this->component->publishSimple(
+            topics: '/users/123/messages',
+            data: 'Private message',
+            private: true,
+        );
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test publishSimple with all parameters
+     */
+    public function testPublishSimpleWithAllParameters(): void
+    {
+        $result = $this->component->publishSimple(
+            topics: ['/users/123', '/notifications'],
+            data: 'Complete message',
+            private: true,
+            id: 'msg-456',
+            type: 'message.new',
+            retry: 3000,
+        );
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test publishSimple with pre-encoded JSON
+     */
+    public function testPublishSimpleWithPreEncodedJson(): void
+    {
+        $json = json_encode(['status' => 'active', 'count' => 42]);
+        assert(is_string($json));
+
+        $result = $this->component->publishSimple(
+            topics: '/stats',
+            data: $json,
+        );
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test publishSimple with HTML fragment
+     */
+    public function testPublishSimpleWithHtmlFragment(): void
+    {
+        $html = '<div class="alert alert-info">New notification</div>';
+
+        $result = $this->component->publishSimple(
+            topics: '/ui-updates',
+            data: $html,
+        );
+
+        $this->assertTrue($result);
     }
 }

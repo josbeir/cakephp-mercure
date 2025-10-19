@@ -7,6 +7,7 @@ use Cake\Core\Configure;
 use Cake\TestSuite\TestCase;
 use Cake\View\Exception\MissingViewException;
 use Cake\View\View;
+use Cake\View\ViewBuilder;
 use InvalidArgumentException;
 use Mercure\Update\Update;
 use Mercure\Update\ViewUpdate;
@@ -578,5 +579,52 @@ class ViewUpdateTest extends TestCase
             ->element('test_item')
             ->viewVars(['title' => 'Test', 'content' => 'Test'])
             ->build();
+    }
+
+    /**
+     * Test fluent builder with custom ViewBuilder
+     */
+    public function testFluentBuilderWithCustomViewBuilder(): void
+    {
+        $customBuilder = new ViewBuilder();
+        $customBuilder->setClassName(View::class);
+
+        $update = (new ViewUpdate('/test'))
+            ->element('test_item')
+            ->viewVars(['title' => 'Custom Builder Test'])
+            ->withViewBuilder($customBuilder)
+            ->build();
+
+        $this->assertInstanceOf(Update::class, $update);
+        $this->assertEquals(['/test'], $update->getTopics());
+    }
+
+    /**
+     * Test layout method with null value
+     */
+    public function testLayoutWithNullValue(): void
+    {
+        $update = (new ViewUpdate('/test'))
+            ->element('test_item')
+            ->viewVars(['title' => 'No Layout'])
+            ->layout(null)
+            ->build();
+
+        $this->assertInstanceOf(Update::class, $update);
+    }
+
+    /**
+     * Test layout method clears existing layout
+     */
+    public function testLayoutMethodClearsLayout(): void
+    {
+        $update = (new ViewUpdate('/test'))
+            ->element('test_item')
+            ->viewVars(['title' => 'Layout Test'])
+            ->layout('ajax')
+            ->layout(null) // Clear the layout
+            ->build();
+
+        $this->assertInstanceOf(Update::class, $update);
     }
 }

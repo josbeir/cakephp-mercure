@@ -10,3 +10,4 @@
 /.zed/
 /tmp/
 .rules
+/coverage*

@@ -5,6 +5,7 @@ namespace Mercure\Test\TestCase;
 
 use Cake\TestSuite\TestCase;
 use InvalidArgumentException;
+use JsonException;
 use Mercure\Update\JsonUpdate;
 use Mercure\Update\Update;
 use stdClass;
@@ -522,5 +523,39 @@ class JsonUpdateTest extends TestCase
         $this->assertEquals('test-id', $update->getId());
         $this->assertEquals('test.type', $update->getType());
         $this->assertEquals(1000, $update->getRetry());
+    }
+
+    /**
+     * Test JSON encoding failure with invalid UTF-8
+     */
+    public function testJsonEncodingFailure(): void
+    {
+        $this->expectException(JsonException::class);
+        $this->expectExceptionMessage('Failed to encode data to JSON');
+
+        // Create invalid UTF-8 sequence that will fail JSON encoding with JSON_THROW_ON_ERROR
+        $invalidData = ['text' => "\xB1\x31"];
+
+        JsonUpdate::create(
+            topics: '/test',
+            data: $invalidData,
+            jsonOptions: JSON_THROW_ON_ERROR,
+        );
+    }
+
+    /**
+     * Test fluent builder with encoding failure
+     */
+    public function testFluentBuilderWithEncodingFailure(): void
+    {
+        $this->expectException(JsonException::class);
+
+        // Create invalid UTF-8 sequence
+        $invalidData = ['text' => "\xB1\x31"];
+
+        (new JsonUpdate('/test'))
+            ->data($invalidData)
+            ->jsonOptions(JSON_THROW_ON_ERROR)
+            ->build();
     }
 }
