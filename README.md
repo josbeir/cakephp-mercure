@@ -71,7 +71,7 @@ Common use cases include live dashboards, collaborative editing, real-time notif
 > [!IMPORTANT]
 > **Minimum Requirements:**
 > - PHP 8.2 or higher
-> - CakePHP 5.2.9 or higher (required for dependency injection support in components)
+> - CakePHP 5.0.1 or higher
 
 Install the plugin using Composer:
 
@@ -229,7 +229,7 @@ Publisher::publish($update);
 
 > [!TIP]
 > **Using MercureComponent in Controllers:** If you're publishing from a controller, the `MercureComponent` provides convenient methods that eliminate the need to manually create Update objects or call the Publisher facade:
-> 
+>
 > ```php
 > // In your controller
 > public function initialize(): void
@@ -237,19 +237,19 @@ Publisher::publish($update);
 >     parent::initialize();
 >     $this->loadComponent('Mercure.Mercure');
 > }
-> 
+>
 > public function update($id)
 > {
 >     $book = $this->Books->get($id);
 >     $book = $this->Books->patchEntity($book, $this->request->getData());
 >     $this->Books->save($book);
-> 
+>
 >     // Publish JSON directly - no need for Publisher facade
 >     $this->Mercure->publishJson(
 >         topics: "/books/{$id}",
 >         data: ['status' => $book->status, 'title' => $book->title]
 >     );
-> 
+>
 >     // Or publish a rendered element
 >     $this->Mercure->publishView(
 >         topics: "/books/{$id}",
@@ -258,7 +258,7 @@ Publisher::publish($update);
 >     );
 > }
 > ```
-> 
+>
 > See the [MercureComponent API Reference](#mercurecomponent) for all available methods.
 
 #### Publishing JSON Data
@@ -743,15 +743,15 @@ The authorization cookie contains a JWT token that authenticates subscribers to 
 ```php
 'cookie' => [
     'name' => 'mercureAuthorization',
-    
+
     // Lifetime in seconds (0 for session cookie)
     'lifetime' => 3600,  // 1 hour
-    
+
     // Or use explicit expiry datetime
     // 'expires' => '+1 hour',
-    
+
     // Omit both to use PHP's session.cookie_lifetime setting
-    
+
     'domain' => '.example.com',
     'path' => '/',
     'secure' => true,      // HTTPS only (recommended)
