@@ -81,17 +81,42 @@ return [
         /**
          * Cookie Configuration for Subscriber Authorization
          *
-         * Options are passed directly to CakePHP's Cookie::create() method.
          * The cookie contains a JWT token that authenticates subscribers to private topics.
+         * JWT expiry is automatically calculated based on cookie lifetime settings.
          *
-         * Supported keys: name, path, domain, secure, httponly, samesite, expires
+         * Lifetime Priority (highest to lowest):
+         * 1. 'expires' - Explicit datetime string (e.g., '+1 hour', '2024-12-31 23:59:59')
+         * 2. 'lifetime' - Seconds (e.g., 3600 for 1 hour, 0 for session cookie)
+         * 3. ini_get('session.cookie_lifetime') - PHP session setting
+         * 4. Default: JWT exp = +1 hour
+         *
+         * If lifetime is 0 (session cookie), JWT exp defaults to +1 hour for security.
+         *
+         * Security Notes:
+         * - 'samesite' defaults to 'strict' for CSRF protection
+         * - Set 'secure' => true in production (requires HTTPS)
+         * - 'httponly' prevents JavaScript access
+         *
+         * Supported keys: name, lifetime, expires, path, domain, secure, httponly, samesite
          *
          * @see https://book.cakephp.org/5/en/controllers/request-response.html#setting-cookies
          * @see https://api.cakephp.org/5.0/class-Cake.Http.Cookie.Cookie.html
          */
         'cookie' => [
             'name' => env('MERCURE_COOKIE_NAME', 'mercureAuthorization'),
+            
+            // Lifetime in seconds (0 for session cookie)
+            // Omit to use session.cookie_lifetime ini setting
+            // 'lifetime' => 3600,  // 1 hour
+            
+            // Or use explicit expiry datetime
+            // 'expires' => '+1 hour',
+            
+            'path' => '/',
             'domain' => env('MERCURE_COOKIE_DOMAIN'),
+            'secure' => env('MERCURE_COOKIE_SECURE', true),
+            'httponly' => true,
+            'samesite' => env('MERCURE_COOKIE_SAMESITE', 'strict'),
         ],
 
         /**

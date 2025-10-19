@@ -38,6 +38,7 @@ class AuthorizationServiceTest extends TestCase
         $this->service = new AuthorizationService($this->tokenFactory, [
             'name' => 'testAuth',
             'expires' => null,
+            'lifetime' => null,
             'path' => '/test',
             'secure' => true,
             'httponly' => true,
@@ -64,10 +65,11 @@ class AuthorizationServiceTest extends TestCase
 
         $this->assertEquals('mercureAuthorization', $config['name']);
         $this->assertNull($config['expires']);
+        $this->assertNull($config['lifetime']);
         $this->assertEquals('/', $config['path']);
         $this->assertFalse($config['secure']);
         $this->assertTrue($config['httponly']);
-        $this->assertEquals('lax', $config['samesite']);
+        $this->assertEquals('strict', $config['samesite']);
         $this->assertNull($config['domain']);
     }
 
@@ -410,5 +412,209 @@ class AuthorizationServiceTest extends TestCase
         $result = $this->service->addDiscoveryHeader($response);
 
         $this->assertEquals(201, $result->getStatusCode());
+    }
+
+    /**
+     * Test JWT expiry is set automatically when using lifetime config
+     */
+    public function testJwtExpirySetAutomaticallyWithLifetime(): void
+    {
+        $service = new AuthorizationService($this->tokenFactory, [
+            'name' => 'testCookie',
+            'lifetime' => 3600, // 1 hour
+        ]);
+
+        $response = new Response();
+        $result = $service->setCookie($response, ['/feeds/123']);
+
+        $cookies = $result->getCookieCollection();
+        $cookie = $cookies->get('testCookie');
+        $jwt = $cookie->getValue();
+        $this->assertIsString($jwt);
+
+        // Decode JWT to check exp claim
+        $parts = explode('.', $jwt);
+        $this->assertCount(3, $parts);
+        $payload = json_decode(base64_decode($parts[1]), true);
+
+        $this->assertArrayHasKey('exp', $payload);
+        $this->assertIsInt($payload['exp']);
+
+        // Exp should be approximately 1 hour from now
+        $expectedExp = time() + 3600;
+        $this->assertGreaterThan(time(), $payload['exp']);
+        $this->assertLessThan($expectedExp + 10, $payload['exp']); // Allow 10 second tolerance
+    }
+
+    /**
+     * Test JWT expiry defaults to 1 hour when lifetime is 0 (session cookie)
+     */
+    public function testJwtExpiryDefaultsToOneHourForSessionCookie(): void
+    {
+        $service = new AuthorizationService($this->tokenFactory, [
+            'name' => 'testCookie',
+            'lifetime' => 0, // Session cookie
+        ]);
+
+        $response = new Response();
+        $result = $service->setCookie($response, ['/feeds/123']);
+
+        $cookies = $result->getCookieCollection();
+        $cookie = $cookies->get('testCookie');
+        $jwt = $cookie->getValue();
+        $this->assertIsString($jwt);
+
+        // Decode JWT to check exp claim
+        $parts = explode('.', $jwt);
+        $payload = json_decode(base64_decode($parts[1]), true);
+
+        $this->assertArrayHasKey('exp', $payload);
+
+        // Should be approximately 1 hour from now
+        $expectedExp = time() + 3600;
+        $this->assertGreaterThan(time(), $payload['exp']);
+        $this->assertLessThan($expectedExp + 10, $payload['exp']);
+    }
+
+    /**
+     * Test JWT expiry uses explicit expires config
+     */
+    public function testJwtExpiryUsesExplicitExpiresConfig(): void
+    {
+        $futureTime = '+2 hours';
+        $service = new AuthorizationService($this->tokenFactory, [
+            'name' => 'testCookie',
+            'expires' => $futureTime,
+        ]);
+
+        $response = new Response();
+        $result = $service->setCookie($response, ['/feeds/123']);
+
+        $cookies = $result->getCookieCollection();
+        $cookie = $cookies->get('testCookie');
+        $jwt = $cookie->getValue();
+        $this->assertIsString($jwt);
+
+        // Decode JWT to check exp claim
+        $parts = explode('.', $jwt);
+        $payload = json_decode(base64_decode($parts[1]), true);
+
+        $this->assertArrayHasKey('exp', $payload);
+
+        // Should be approximately 2 hours from now
+        $expectedExp = strtotime($futureTime);
+        $this->assertGreaterThan(time() + 3600, $payload['exp']);
+        $this->assertLessThan($expectedExp + 10, $payload['exp']);
+    }
+
+    /**
+     * Test JWT expiry can be overridden via additionalClaims
+     */
+    public function testJwtExpiryCanBeOverriddenViaAdditionalClaims(): void
+    {
+        $customExp = time() + 7200; // 2 hours
+        $service = new AuthorizationService($this->tokenFactory, [
+            'name' => 'testCookie',
+            'lifetime' => 3600, // This should be ignored
+        ]);
+
+        $response = new Response();
+        $result = $service->setCookie($response, ['/feeds/123'], [
+            'exp' => $customExp,
+        ]);
+
+        $cookies = $result->getCookieCollection();
+        $cookie = $cookies->get('testCookie');
+        $jwt = $cookie->getValue();
+        $this->assertIsString($jwt);
+
+        // Decode JWT to check exp claim
+        $parts = explode('.', $jwt);
+        $payload = json_decode(base64_decode($parts[1]), true);
+
+        $this->assertArrayHasKey('exp', $payload);
+        $this->assertEquals($customExp, $payload['exp']);
+    }
+
+    /**
+     * Test JWT expiry falls back to session.cookie_lifetime
+     */
+    public function testJwtExpiryFallsBackToSessionCookieLifetime(): void
+    {
+        // Save original value
+        $originalLifetime = ini_get('session.cookie_lifetime');
+
+        // Set custom session lifetime
+        ini_set('session.cookie_lifetime', '7200'); // 2 hours
+
+        try {
+            $service = new AuthorizationService($this->tokenFactory, [
+                'name' => 'testCookie',
+                // No lifetime or expires set
+            ]);
+
+            $response = new Response();
+            $result = $service->setCookie($response, ['/feeds/123']);
+
+            $cookies = $result->getCookieCollection();
+            $cookie = $cookies->get('testCookie');
+            $jwt = $cookie->getValue();
+            $this->assertIsString($jwt);
+
+            // Decode JWT to check exp claim
+            $parts = explode('.', $jwt);
+            $payload = json_decode(base64_decode($parts[1]), true);
+
+            $this->assertArrayHasKey('exp', $payload);
+
+            // Should be approximately 2 hours from now
+            $expectedExp = time() + 7200;
+            $this->assertGreaterThan(time() + 3600, $payload['exp']);
+            $this->assertLessThan($expectedExp + 10, $payload['exp']);
+        } finally {
+            // Restore original value
+            ini_set('session.cookie_lifetime', $originalLifetime);
+        }
+    }
+
+    /**
+     * Test JWT expiry defaults to 1 hour when session.cookie_lifetime is 0
+     */
+    public function testJwtExpiryDefaultsToOneHourWhenSessionLifetimeIsZero(): void
+    {
+        // Save original value
+        $originalLifetime = ini_get('session.cookie_lifetime');
+
+        // Set session lifetime to 0
+        ini_set('session.cookie_lifetime', '0');
+
+        try {
+            $service = new AuthorizationService($this->tokenFactory, [
+                'name' => 'testCookie',
+                // No lifetime or expires set
+            ]);
+
+            $response = new Response();
+            $result = $service->setCookie($response, ['/feeds/123']);
+
+            $cookies = $result->getCookieCollection();
+            $cookie = $cookies->get('testCookie');
+            $jwt = $cookie->getValue();
+            $this->assertIsString($jwt);
+
+            // Decode JWT to check exp claim
+            $parts = explode('.', $jwt);
+            $payload = json_decode(base64_decode($parts[1]), true);
+
+            $this->assertArrayHasKey('exp', $payload);
+
+            // Should be approximately 1 hour from now (default for session cookies)
+            $expectedExp = time() + 3600;
+            $this->assertGreaterThan(time(), $payload['exp']);
+            $this->assertLessThan($expectedExp + 10, $payload['exp']);
+        } finally {
+            // Restore original value
+            ini_set('session.cookie_lifetime', $originalLifetime);
+        }
     }
 }

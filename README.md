@@ -738,28 +738,46 @@ Configure the HTTP client used to communicate with the Mercure hub:
 
 ### Cookie Configuration
 
-Customize the authorization cookie settings. Options are passed directly to CakePHP's `Cookie::create()` method.
+The authorization cookie contains a JWT token that authenticates subscribers to private topics. JWT expiry is automatically calculated based on cookie lifetime settings.
 
 ```php
 'cookie' => [
     'name' => 'mercureAuthorization',
-    'expires' => new DateTime('+1 hour'), // Cookie expiration time
-    'domain' => '.example.com', // For cross-subdomain access
+    
+    // Lifetime in seconds (0 for session cookie)
+    'lifetime' => 3600,  // 1 hour
+    
+    // Or use explicit expiry datetime
+    // 'expires' => '+1 hour',
+    
+    // Omit both to use PHP's session.cookie_lifetime setting
+    
+    'domain' => '.example.com',
     'path' => '/',
-    'secure' => true, // HTTPS only in production
-    'samesite' => 'Lax', // or 'Strict', 'None'
-    'httponly' => true,
+    'secure' => true,      // HTTPS only (recommended)
+    'httponly' => true,    // Prevents XSS token theft
+    'samesite' => 'strict', // CSRF protection
 ]
 ```
 
-**Supported cookie options:**
-- `name` - Cookie name (default: `mercureAuthorization`)
-- `expires` - Expiration time as `DateTime` object or `null` for session cookie
-- `domain` - Cookie domain (use `.example.com` for cross-subdomain access)
-- `path` - Cookie path (default: `/`)
-- `secure` - Send only over HTTPS (default: `false`)
-- `httponly` - Prevent JavaScript access (default: `true`)
-- `samesite` - CSRF protection: `Strict`, `Lax`, or `None` (default: `Lax`)
+**JWT Expiry Management:**
+
+The plugin automatically sets the JWT `exp` claim based on cookie lifetime, following this priority:
+
+1. `additionalClaims['exp']` - Per-request override
+2. `cookie.expires` - Explicit datetime (`'+1 hour'`, etc.)
+3. `cookie.lifetime` - Seconds (`3600` for 1 hour, `0` for session)
+4. `ini_get('session.cookie_lifetime')` - PHP session setting
+5. Default: +1 hour
+
+Session cookies (`lifetime: 0`) automatically get a 1-hour JWT expiry for security.
+
+**Security Notes:**
+
+- `httponly: true` (default) prevents JavaScript access while still allowing EventSource connections
+- `samesite: 'strict'` (default) provides CSRF protection
+- `secure: true` requires HTTPS (recommended for production)
+- JWT tokens always expire - no infinite authorization
 
 For more details, see the [CakePHP Cookie documentation](https://book.cakephp.org/5/en/controllers/request-response.html#setting-cookies).
 

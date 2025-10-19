@@ -96,7 +96,7 @@ class AuthorizationTest extends TestCase
         $this->assertEquals('/', $config['path']);
         $this->assertFalse($config['secure']);
         $this->assertTrue($config['httponly']);
-        $this->assertEquals('lax', $config['samesite']);
+        $this->assertEquals('strict', $config['samesite']);
     }
 
     /**

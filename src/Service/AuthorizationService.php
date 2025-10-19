@@ -5,10 +5,12 @@ namespace Mercure\Service;
 
 use Cake\Http\Cookie\Cookie;
 use Cake\Http\Response;
+use DateTimeImmutable;
 use Mercure\AuthorizationInterface;
 use Mercure\Exception\MercureException;
 use Mercure\Internal\ConfigurationHelper;
 use Mercure\Jwt\TokenFactoryInterface;
+use function ini_get;
 
 /**
  * Authorization Service
@@ -41,8 +43,9 @@ class AuthorizationService implements AuthorizationInterface
             'domain' => null,
             'secure' => false,
             'httponly' => true,
-            'samesite' => 'lax',
+            'samesite' => 'strict',
             'expires' => null,
+            'lifetime' => null,
         ];
     }
 
@@ -91,6 +94,9 @@ class AuthorizationService implements AuthorizationInterface
      * Generates a JWT token that only contains subscribe permissions (no publish).
      * This is specifically for client-side EventSource connections.
      *
+     * Automatically sets the 'exp' (expiry) claim based on cookie lifetime unless
+     * explicitly provided in additionalClaims.
+     *
      * @param array<string> $subscribe Topics the subscriber can access
      * @param array<string, mixed> $additionalClaims Additional JWT claims
      * @return string JWT token
@@ -98,6 +104,11 @@ class AuthorizationService implements AuthorizationInterface
      */
     private function createSubscriberJwt(array $subscribe, array $additionalClaims = []): string
     {
+        // Auto-set JWT expiry claim if not provided
+        if (!isset($additionalClaims['exp'])) {
+            $additionalClaims['exp'] = $this->calculateExpiry();
+        }
+
         // For subscriber tokens, we don't need publish permissions
         $jwt = $this->tokenFactory->create($subscribe, [], $additionalClaims);
 
@@ -106,6 +117,55 @@ class AuthorizationService implements AuthorizationInterface
         }
 
         return $jwt;
+    }
+
+    /**
+     * Calculate JWT expiry time based on cookie configuration
+     *
+     * Priority order:
+     * 1. cookie.expires - Explicit datetime in config
+     * 2. cookie.lifetime - Seconds in config
+     * 3. session.cookie_lifetime - PHP ini setting
+     * 4. Default: +1 hour
+     *
+     * If lifetime is 0 (session cookie), defaults to +1 hour for security.
+     *
+     * @return int JWT expiry time as Unix timestamp
+     */
+    private function calculateExpiry(): int
+    {
+        // Check for explicit 'expires' in cookie config
+        if (isset($this->cookieConfig['expires'])) {
+            $expires = $this->cookieConfig['expires'];
+            // @phpstan-ignore-next-line notIdentical.alwaysTrue
+            if ($expires !== null) {
+                $dateTime = new DateTimeImmutable($expires);
+
+                return $dateTime->getTimestamp();
+            }
+        }
+
+        // Check for 'lifetime' in cookie config
+        if (isset($this->cookieConfig['lifetime'])) {
+            $lifetime = $this->cookieConfig['lifetime'];
+            // @phpstan-ignore-next-line notIdentical.alwaysTrue
+            if ($lifetime !== null) {
+                $lifetime = (int)$lifetime;
+            } else {
+                // Fall back to PHP session.cookie_lifetime ini setting
+                $lifetime = (int)ini_get('session.cookie_lifetime');
+            }
+        } else {
+            // Fall back to PHP session.cookie_lifetime ini setting
+            $lifetime = (int)ini_get('session.cookie_lifetime');
+        }
+
+        // If lifetime is 0 (session cookie), default JWT to 1 hour for security
+        if ($lifetime === 0) {
+            return time() + 3600;
+        }
+
+        return time() + $lifetime;
     }
 
     /**
