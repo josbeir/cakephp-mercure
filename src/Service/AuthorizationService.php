@@ -222,7 +222,7 @@ class AuthorizationService implements AuthorizationInterface
     public function addDiscoveryHeader(Response $response, ?ServerRequest $request = null): Response
     {
         // Skip preflight requests to prevent CORS issues
-        if ($request !== null && $this->isPreflightRequest($request)) {
+        if ($request instanceof ServerRequest && $this->isPreflightRequest($request)) {
             return $response;
         }
 
