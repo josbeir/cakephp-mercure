@@ -8,12 +8,16 @@ use Cake\Controller\ComponentRegistry;
 use Cake\Event\EventInterface;
 use Mercure\AuthorizationInterface;
 use Mercure\Internal\ConfigurationHelper;
+use Mercure\PublisherInterface;
+use Mercure\Update\JsonUpdate;
+use Mercure\Update\Update;
+use Mercure\Update\ViewUpdate;
 
 /**
  * Mercure Component
  *
- * Simplifies Mercure authorization in controllers by automatically handling
- * response modifications and providing a fluent interface.
+ * Simplifies Mercure authorization and publishing in controllers with automatic
+ * dependency injection and fluent interface.
  *
  * Example usage:
  * ```
@@ -26,11 +30,28 @@ use Mercure\Internal\ConfigurationHelper;
  *
  * public function view($id)
  * {
+ *     $book = $this->Books->get($id);
+ *
  *     // Authorize subscriber
  *     $this->Mercure->authorize(["/books/{$id}"]);
  *
  *     // Or with discovery
  *     $this->Mercure->authorize(["/books/{$id}"])->discover();
+ *
+ *     $this->set('book', $book);
+ * }
+ *
+ * public function update($id)
+ * {
+ *     $book = $this->Books->get($id);
+ *     $book = $this->Books->patchEntity($book, $this->request->getData());
+ *     $this->Books->save($book);
+ *
+ *     // Publish update
+ *     $this->Mercure->publishJson(
+ *         topics: "/books/{$id}",
+ *         data: ['status' => $book->status, 'title' => $book->title]
+ *     );
  * }
  *
  * public function logout()
@@ -63,11 +84,13 @@ class MercureComponent extends Component
      *
      * @param \Cake\Controller\ComponentRegistry<\Cake\Controller\Controller> $registry Component registry
      * @param \Mercure\AuthorizationInterface $authorizationService Authorization service
+     * @param \Mercure\PublisherInterface $publisherService Publisher service
      * @param array<string, mixed> $config Component configuration
      */
     public function __construct(
         ComponentRegistry $registry,
         protected AuthorizationInterface $authorizationService,
+        protected PublisherInterface $publisherService,
         array $config = [],
     ) {
         parent::__construct($registry, $config);
@@ -203,5 +226,145 @@ class MercureComponent extends Component
     public function getPublicUrl(): string
     {
         return ConfigurationHelper::getPublicUrl();
+    }
+
+    /**
+     * Publish an update to the Mercure hub
+     *
+     * Example:
+     * ```
+     * $update = new Update('/books/123', json_encode(['status' => 'updated']));
+     * $this->Mercure->publish($update);
+     * ```
+     *
+     * @param \Mercure\Update\Update $update The update to publish
+     * @return bool True if successful
+     * @throws \Mercure\Exception\MercureException
+     */
+    public function publish(Update $update): bool
+    {
+        return $this->publisherService->publish($update);
+    }
+
+    /**
+     * Publish JSON data to the Mercure hub
+     *
+     * Automatically encodes the data as JSON before publishing.
+     *
+     * Example:
+     * ```
+     * // Simple publish
+     * $this->Mercure->publishJson('/books/123', ['status' => 'updated']);
+     *
+     * // With multiple topics
+     * $this->Mercure->publishJson(
+     *     topics: ['/books/123', '/notifications'],
+     *     data: ['message' => 'Book updated']
+     * );
+     *
+     * // Private update
+     * $this->Mercure->publishJson(
+     *     topics: '/users/123/notifications',
+     *     data: ['message' => 'Private notification'],
+     *     private: true
+     * );
+     * ```
+     *
+     * @param array<string>|string $topics Topic(s) to publish to
+     * @param mixed $data Data to encode as JSON
+     * @param bool $private Whether this is a private update
+     * @param string|null $id Optional event ID
+     * @param string|null $type Optional event type
+     * @param int|null $retry Optional retry delay in milliseconds
+     * @return bool True if successful
+     * @throws \Mercure\Exception\MercureException
+     * @throws \JsonException If JSON encoding fails
+     */
+    public function publishJson(
+        array|string $topics,
+        mixed $data,
+        bool $private = false,
+        ?string $id = null,
+        ?string $type = null,
+        ?int $retry = null,
+    ): bool {
+        $update = JsonUpdate::create(
+            topics: $topics,
+            data: $data,
+            private: $private,
+            id: $id,
+            type: $type,
+            retry: $retry,
+        );
+
+        return $this->publisherService->publish($update);
+    }
+
+    /**
+     * Publish rendered view/element to the Mercure hub
+     *
+     * Automatically renders a template or element and publishes the output.
+     *
+     * Example:
+     * ```
+     * // Render and publish an element
+     * $this->Mercure->publishView(
+     *     topics: '/books/123',
+     *     element: 'Books/item',
+     *     data: ['book' => $book]
+     * );
+     *
+     * // Render and publish a template
+     * $this->Mercure->publishView(
+     *     topics: '/notifications',
+     *     template: 'Notifications/item',
+     *     data: ['notification' => $notification]
+     * );
+     *
+     * // With layout
+     * $this->Mercure->publishView(
+     *     topics: '/dashboard',
+     *     template: 'Dashboard/stats',
+     *     layout: 'ajax',
+     *     data: ['stats' => $stats]
+     * );
+     * ```
+     *
+     * @param array<string>|string $topics Topic(s) to publish to
+     * @param string|null $template Template to render
+     * @param string|null $element Element to render
+     * @param array<string, mixed> $data View variables
+     * @param string|null $layout Layout to use
+     * @param bool $private Whether this is a private update
+     * @param string|null $id Optional event ID
+     * @param string|null $type Optional event type
+     * @param int|null $retry Optional retry delay in milliseconds
+     * @return bool True if successful
+     * @throws \Mercure\Exception\MercureException
+     */
+    public function publishView(
+        array|string $topics,
+        ?string $template = null,
+        ?string $element = null,
+        array $data = [],
+        ?string $layout = null,
+        bool $private = false,
+        ?string $id = null,
+        ?string $type = null,
+        ?int $retry = null,
+    ): bool {
+        $update = ViewUpdate::create(
+            topics: $topics,
+            template: $template,
+            element: $element,
+            data: $data,
+            layout: $layout,
+            private: $private,
+            id: $id,
+            type: $type,
+            retry: $retry,
+        );
+
+        return $this->publisherService->publish($update);
     }
 }

@@ -9,7 +9,7 @@ use Mercure\Exception\MercureException;
 use Mercure\Internal\QueryBuilder;
 use Mercure\Jwt\TokenProviderInterface;
 use Mercure\PublisherInterface;
-use Mercure\Update;
+use Mercure\Update\Update;
 
 /**
  * Publisher Service
@@ -44,7 +44,7 @@ class PublisherService implements PublisherInterface
     /**
      * Publish an update to the Mercure hub
      *
-     * @param \Mercure\Update $update The update to publish
+     * @param \Mercure\Update\Update $update The update to publish
      * @return bool True if successful
      * @throws \Mercure\Exception\MercureException
      */
@@ -92,7 +92,7 @@ class PublisherService implements PublisherInterface
      * Prepares data array for QueryBuilder to encode.
      * Topics can be provided multiple times for multiple subscriptions.
      *
-     * @param \Mercure\Update $update The update object
+     * @param \Mercure\Update\Update $update The update object
      * @return array<string, mixed> Post data array
      */
     private function buildPostData(Update $update): array

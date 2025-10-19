@@ -13,7 +13,7 @@ use Mercure\Test\Fixture\CustomTokenProvider;
 use Mercure\Test\Fixture\InvalidTokenFactory;
 use Mercure\Test\Fixture\InvalidTokenProvider;
 use Mercure\TestSuite\MockPublisher;
-use Mercure\Update;
+use Mercure\Update\Update;
 
 /**
  * Publisher Test

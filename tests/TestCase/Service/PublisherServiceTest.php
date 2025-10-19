@@ -8,7 +8,7 @@ use Mercure\Exception\MercureException;
 use Mercure\Jwt\StaticTokenProvider;
 use Mercure\Service\PublisherService;
 use Mercure\TestSuite\MockPublisher;
-use Mercure\Update;
+use Mercure\Update\Update;
 
 /**
  * PublisherService Test

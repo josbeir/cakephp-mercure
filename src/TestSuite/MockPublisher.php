@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Mercure\TestSuite;
 
 use Mercure\PublisherInterface;
-use Mercure\Update;
+use Mercure\Update\Update;
 
 /**
  * Mock Publisher for Testing
@@ -15,7 +15,7 @@ use Mercure\Update;
 class MockPublisher implements PublisherInterface
 {
     /**
-     * @var array<\Mercure\Update>
+     * @var array<\Mercure\Update\Update>
      */
     private array $updates = [];
 
@@ -34,7 +34,7 @@ class MockPublisher implements PublisherInterface
     /**
      * Publish an update (stores it in memory)
      *
-     * @param \Mercure\Update $update The update to publish
+     * @param \Mercure\Update\Update $update The update to publish
      * @return bool Always returns true
      */
     public function publish(Update $update): bool
@@ -55,7 +55,7 @@ class MockPublisher implements PublisherInterface
     /**
      * Get all published updates
      *
-     * @return array<\Mercure\Update>
+     * @return array<\Mercure\Update\Update>
      */
     public function getUpdates(): array
     {

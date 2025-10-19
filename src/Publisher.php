@@ -11,6 +11,7 @@ use Mercure\Jwt\StaticTokenProvider;
 use Mercure\Jwt\TokenFactoryInterface;
 use Mercure\Jwt\TokenProviderInterface;
 use Mercure\Service\PublisherService;
+use Mercure\Update\Update;
 
 /**
  * Publisher Facade
@@ -130,7 +131,7 @@ class Publisher
     /**
      * Publish an update to the Mercure hub
      *
-     * @param \Mercure\Update $update The update to publish
+     * @param \Mercure\Update\Update $update The update to publish
      * @return bool True if successful
      * @throws \Mercure\Exception\MercureException
      */

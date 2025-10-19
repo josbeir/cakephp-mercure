@@ -5,7 +5,7 @@ namespace Mercure\Test\TestCase;
 
 use Cake\TestSuite\TestCase;
 use InvalidArgumentException;
-use Mercure\Update;
+use Mercure\Update\Update;
 
 /**
  * Update Test

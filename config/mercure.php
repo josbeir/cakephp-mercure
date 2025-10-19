@@ -112,7 +112,20 @@ return [
          *    Add to Application.php middleware stack:
          *    $middlewareQueue->add(new \Mercure\Http\Middleware\MercureDiscoveryMiddleware());
          *
-         * The discovery header will contain the public_url (or url if not set).
-         */
-    ],
-];
+         /**
+          * The discovery header will contain the public_url (or url if not set).
+          */
+
+         /**
+          * View Class for ViewUpdate
+          *
+          * Custom View class to use when rendering templates/elements in ViewUpdate.
+          * Must extend Cake\View\View.
+          *
+          * Default: Auto-detected (App\View\AppView if exists, otherwise Cake\View\View)
+          *
+          * You can override this to use a custom View class:
+          * 'view_class' => \App\View\CustomView::class,
+          */
+     ],
+ ];

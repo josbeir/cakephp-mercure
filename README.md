@@ -20,6 +20,8 @@ Push real-time updates to clients using the Mercure protocol.
 - [Configuration](#configuration)
 - [Basic Usage](#basic-usage)
   - [Publishing Updates](#publishing-updates)
+    - [Publishing JSON Data](#publishing-json-data)
+    - [Publishing Rendered Views](#publishing-rendered-views)
   - [Subscribing to Updates](#subscribing-to-updates)
 - [Authorization](#authorization)
   - [Publishing Private Updates](#publishing-private-updates)
@@ -42,6 +44,8 @@ Push real-time updates to clients using the Mercure protocol.
   - [Authorization](#authorization-1)
   - [MercureHelper](#mercurehelper)
   - [Update](#update)
+  - [JsonUpdate](#jsonupdate)
+  - [ViewUpdate](#viewupdate)
   - [MercureDiscoveryMiddleware](#mercurediscoverymiddleware)
 - [Contributing](#contributing)
 - [License](#license)
@@ -63,6 +67,11 @@ Common use cases include live dashboards, collaborative editing, real-time notif
 ## Installation
 
 ### Installing the Plugin
+
+> [!IMPORTANT]
+> **Minimum Requirements:**
+> - PHP 8.2 or higher
+> - CakePHP 5.2.9 or higher (required for dependency injection support in components)
 
 Install the plugin using Composer:
 
@@ -191,7 +200,7 @@ Use the `Publisher` facade to send updates to the Mercure hub:
 
 ```php
 use Mercure\Publisher;
-use Mercure\Update;
+use Mercure\Update\Update;
 
 // In a controller or service
 $update = new Update(
@@ -217,6 +226,119 @@ $update = new Update(
 
 Publisher::publish($update);
 ```
+
+#### Publishing JSON Data
+
+For convenience when publishing JSON data, use the `JsonUpdate` class which automatically encodes arrays and objects to JSON:
+
+```php
+use Mercure\Publisher;
+use Mercure\Update\JsonUpdate;
+
+// Simple array - no need to call json_encode()
+$update = JsonUpdate::create(
+    topics: 'https://example.com/books/1',
+    data: ['status' => 'OutOfStock', 'quantity' => 0]
+);
+
+Publisher::publish($update);
+```
+
+You can customize JSON encoding options:
+
+```php
+// With custom JSON encoding options
+$update = JsonUpdate::create(
+    topics: 'https://example.com/books/1',
+    data: ['title' => 'Book & Title', 'price' => 19.99],
+    jsonOptions: JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+);
+
+Publisher::publish($update);
+```
+
+For private updates, set the `private` parameter:
+
+```php
+$update = JsonUpdate::create(
+    topics: 'https://example.com/users/123/notifications',
+    data: ['message' => 'New notification', 'unread' => 5],
+    private: true
+);
+
+Publisher::publish($update);
+```
+
+#### Publishing Rendered Views
+
+Use the `ViewUpdate` class to automatically render CakePHP views or elements and publish the rendered HTML:
+
+```php
+use Mercure\Publisher;
+use Mercure\Update\ViewUpdate;
+
+// Render an element
+$update = ViewUpdate::create(
+    topics: 'https://example.com/books/1',
+    element: 'Books/item',
+    data: ['book' => $book]
+);
+
+Publisher::publish($update);
+```
+
+You can also render full templates:
+
+```php
+// Render a template
+$update = ViewUpdate::create(
+    topics: 'https://example.com/notifications',
+    template: 'Notifications/item',
+    data: ['notification' => $notification]
+);
+
+Publisher::publish($update);
+```
+
+To include a layout:
+
+```php
+// Render with layout
+$update = ViewUpdate::create(
+    topics: 'https://example.com/dashboard',
+    template: 'Dashboard/stats',
+    layout: 'ajax',
+    data: ['stats' => $stats]
+);
+
+Publisher::publish($update);
+```
+
+For private updates that require authorization:
+
+```php
+$update = ViewUpdate::create(
+    topics: 'https://example.com/users/123/messages',
+    element: 'Messages/item',
+    data: ['message' => $message],
+    private: true
+);
+
+Publisher::publish($update);
+```
+
+> [!NOTE]
+> **View Class Configuration:** By default, `ViewUpdate` uses CakePHP's automatic view class selection (your `AppView` if it exists, otherwise the base `View` class). You can override this by setting `view_class` in your configuration:
+> 
+> ```php
+> // In config/mercure.php
+> return [
+>     'Mercure' => [
+>         'view_class' => \App\View\CustomView::class,
+>         // ... other config
+>     ],
+> ];
+> ```
 
 ### Subscribing to Updates
 
@@ -735,6 +857,8 @@ Static facade for direct authorization management (alternative to component).
 
 ### Update
 
+Base class for Mercure updates. For most use cases, consider using `JsonUpdate` or `ViewUpdate` instead.
+
 **Constructor:**
 
 ```php
@@ -769,6 +893,105 @@ new Update(
 | `getId()` | `?string` | Get event ID |
 | `getType()` | `?string` | Get event type |
 | `getRetry()` | `?int` | Get retry value |
+
+### JsonUpdate
+
+Specialized Update class that automatically encodes data to JSON.
+
+**Static Factory Method:**
+
+```php
+JsonUpdate::create(
+    string|array $topics,
+    mixed $data,
+    bool $private = false,
+    ?string $id = null,
+    ?string $type = null,
+    ?int $retry = null,
+    int $jsonOptions = JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+): JsonUpdate
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `$topics` | `string\|array` | Topic IRI(s) for the update |
+| `$data` | `mixed` | Data to encode as JSON (array, object, etc.) |
+| `$private` | `bool` | Whether this is a private update |
+| `$id` | `?string` | Optional SSE event ID |
+| `$type` | `?string` | Optional SSE event type |
+| `$retry` | `?int` | Optional reconnection time in milliseconds |
+| `$jsonOptions` | `int` | JSON encoding options |
+
+**Example:**
+
+```php
+use Mercure\Update\JsonUpdate;
+
+$update = JsonUpdate::create(
+    topics: '/books/1',
+    data: ['status' => 'OutOfStock', 'quantity' => 0]
+);
+```
+
+### ViewUpdate
+
+Specialized Update class that automatically renders CakePHP views or elements.
+
+**Static Factory Method:**
+
+```php
+ViewUpdate::create(
+    string|array $topics,
+    ?string $template = null,
+    ?string $element = null,
+    array $data = [],
+    ?string $layout = null,
+    bool $private = false,
+    ?string $id = null,
+    ?string $type = null,
+    ?int $retry = null
+): ViewUpdate
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `$topics` | `string\|array` | Topic IRI(s) for the update |
+| `$template` | `?string` | Template to render (e.g., 'Books/view') |
+| `$element` | `?string` | Element to render (e.g., 'Books/item') |
+| `$data` | `array` | View variables to pass to the template/element |
+| `$layout` | `?string` | Layout to use (null for no layout) |
+| `$private` | `bool` | Whether this is a private update |
+| `$id` | `?string` | Optional SSE event ID |
+| `$type` | `?string` | Optional SSE event type |
+| `$retry` | `?int` | Optional reconnection time in milliseconds |
+
+> [!NOTE]
+> Either `template` or `element` must be specified, but not both.
+
+**Example:**
+
+```php
+use Mercure\Update\ViewUpdate;
+
+// Render an element
+$update = ViewUpdate::create(
+    topics: '/books/1',
+    element: 'Books/item',
+    data: ['book' => $book]
+);
+
+// Render a template with layout
+$update = ViewUpdate::create(
+    topics: '/dashboard',
+    template: 'Dashboard/stats',
+    layout: 'ajax',
+    data: ['stats' => $stats]
+);
+```
 
 ### MercureDiscoveryMiddleware
 

@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Mercure;
 
+use Mercure\Update\Update;
+
 /**
  * Publisher Interface
  *
@@ -13,7 +15,7 @@ interface PublisherInterface
     /**
      * Publish an update to the Mercure hub
      *
-     * @param \Mercure\Update $update The update to publish
+     * @param \Mercure\Update\Update $update The update to publish
      * @return bool True if successful
      * @throws \Mercure\Exception\MercureException
      */

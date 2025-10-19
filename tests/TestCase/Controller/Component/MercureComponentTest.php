@@ -14,6 +14,7 @@ use Cake\TestSuite\TestCase;
 use Mercure\Authorization;
 use Mercure\Controller\Component\MercureComponent;
 use Mercure\Exception\MercureException;
+use Mercure\Publisher;
 
 /**
  * MercureComponent Test Case
@@ -57,10 +58,11 @@ class MercureComponentTest extends TestCase
 
         $registry = new ComponentRegistry($this->controller);
 
-        // Create authorization service
+        // Create services
         $authorizationService = Authorization::create();
+        $publisherService = Publisher::create();
 
-        $this->component = new MercureComponent($registry, $authorizationService);
+        $this->component = new MercureComponent($registry, $authorizationService, $publisherService);
     }
 
     /**
@@ -412,10 +414,11 @@ class MercureComponentTest extends TestCase
 
         $registry = new ComponentRegistry($controller);
 
-        // Create authorization service
+        // Create services
         $authorizationService = Authorization::create();
+        $publisherService = Publisher::create();
 
-        $component = new MercureComponent($registry, $authorizationService, [
+        $component = new MercureComponent($registry, $authorizationService, $publisherService, [
             'autoDiscover' => true,
         ]);
 

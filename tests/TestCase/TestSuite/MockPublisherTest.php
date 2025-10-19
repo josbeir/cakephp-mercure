@@ -5,7 +5,7 @@ namespace Mercure\Test\TestCase\TestSuite;
 
 use Cake\TestSuite\TestCase;
 use Mercure\TestSuite\MockPublisher;
-use Mercure\Update;
+use Mercure\Update\Update;
 
 /**
  * MockPublisher Test
