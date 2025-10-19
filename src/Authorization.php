@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Mercure;
 
 use Cake\Http\Response;
+use Cake\Http\ServerRequest;
 use Mercure\Exception\MercureException;
 use Mercure\Internal\ConfigurationHelper;
 use Mercure\Jwt\FirebaseTokenFactory;
@@ -136,13 +137,16 @@ class Authorization
      * Adds a Link header with rel="mercure" to advertise the Mercure hub URL.
      * This allows clients to discover the hub endpoint automatically.
      *
+     * Skips CORS preflight requests to prevent conflicts with CORS middleware.
+     *
      * @param \Cake\Http\Response $response The response object to modify
+     * @param \Cake\Http\ServerRequest|null $request Optional request to check for preflight
      * @return \Cake\Http\Response Modified response with discovery header
      * @throws \Mercure\Exception\MercureException
      */
-    public static function addDiscoveryHeader(Response $response): Response
+    public static function addDiscoveryHeader(Response $response, ?ServerRequest $request = null): Response
     {
-        return self::create()->addDiscoveryHeader($response);
+        return self::create()->addDiscoveryHeader($response, $request);
     }
 
     /**

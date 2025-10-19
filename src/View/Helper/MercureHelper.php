@@ -193,6 +193,8 @@ class MercureHelper extends Helper
      * This allows clients to automatically discover the hub endpoint for
      * establishing EventSource connections.
      *
+     * Skips CORS preflight requests to prevent conflicts with CORS middleware.
+     *
      * Example usage:
      * ```
      * // In a template or layout
@@ -203,8 +205,9 @@ class MercureHelper extends Helper
      */
     public function discover(): void
     {
+        $request = $this->getView()->getRequest();
         $response = $this->getView()->getResponse();
-        $response = Authorization::addDiscoveryHeader($response);
+        $response = Authorization::addDiscoveryHeader($response, $request);
         $this->getView()->setResponse($response);
     }
 }

@@ -5,6 +5,7 @@ namespace Mercure\Service;
 
 use Cake\Http\Cookie\Cookie;
 use Cake\Http\Response;
+use Cake\Http\ServerRequest;
 use DateTimeImmutable;
 use Mercure\AuthorizationInterface;
 use Mercure\Exception\MercureException;
@@ -211,16 +212,40 @@ class AuthorizationService implements AuthorizationInterface
      * Adds a Link header with rel="mercure" to advertise the Mercure hub URL.
      * This allows clients to discover the hub endpoint automatically.
      *
+     * Skips CORS preflight requests to prevent conflicts with CORS middleware.
+     *
      * @param \Cake\Http\Response $response The response object to modify
+     * @param \Cake\Http\ServerRequest|null $request Optional request to check for preflight
      * @return \Cake\Http\Response Modified response with discovery header
      * @throws \Mercure\Exception\MercureException
      */
-    public function addDiscoveryHeader(Response $response): Response
+    public function addDiscoveryHeader(Response $response, ?ServerRequest $request = null): Response
     {
+        // Skip preflight requests to prevent CORS issues
+        if ($request !== null && $this->isPreflightRequest($request)) {
+            return $response;
+        }
+
         $hubUrl = $this->getPublicUrl();
         $linkHeader = sprintf('<%s>; rel="mercure"', $hubUrl);
 
         return $response->withAddedHeader('Link', $linkHeader);
+    }
+
+    /**
+     * Check if the request is a CORS preflight request
+     *
+     * Preflight requests are OPTIONS requests with the Access-Control-Request-Method header.
+     * These requests should not receive application-specific headers like Mercure discovery
+     * to prevent conflicts with CORS middleware.
+     *
+     * @param \Cake\Http\ServerRequest $request The request to check
+     * @return bool True if this is a CORS preflight request
+     */
+    private function isPreflightRequest(ServerRequest $request): bool
+    {
+        return $request->is('options')
+            && $request->hasHeader('Access-Control-Request-Method');
     }
 
     /**

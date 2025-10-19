@@ -181,8 +181,9 @@ class MercureComponent extends Component
      */
     public function discover(): static
     {
+        $request = $this->getController()->getRequest();
         $response = $this->getController()->getResponse();
-        $response = $this->authorizationService->addDiscoveryHeader($response);
+        $response = $this->authorizationService->addDiscoveryHeader($response, $request);
         $this->getController()->setResponse($response);
 
         return $this;

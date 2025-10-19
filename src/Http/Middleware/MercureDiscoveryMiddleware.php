@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Mercure\Http\Middleware;
 
 use Cake\Http\Response;
+use Cake\Http\ServerRequest;
 use Mercure\Authorization;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -45,9 +46,9 @@ class MercureDiscoveryMiddleware implements MiddlewareInterface
     {
         $response = $handler->handle($request);
 
-        // Add discovery header if response is a CakePHP Response
-        if ($response instanceof Response) {
-            $response = Authorization::addDiscoveryHeader($response);
+        // Add discovery header if response and request are CakePHP instances
+        if ($response instanceof Response && $request instanceof ServerRequest) {
+            $response = Authorization::addDiscoveryHeader($response, $request);
         }
 
         return $response;

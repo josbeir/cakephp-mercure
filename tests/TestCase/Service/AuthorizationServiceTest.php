@@ -5,6 +5,7 @@ namespace Mercure\Test\TestCase\Service;
 
 use Cake\Core\Configure;
 use Cake\Http\Response;
+use Cake\Http\ServerRequest;
 use Cake\TestSuite\TestCase;
 use Mercure\Exception\MercureException;
 use Mercure\Jwt\FirebaseTokenFactory;
@@ -616,5 +617,90 @@ class AuthorizationServiceTest extends TestCase
             // Restore original value
             ini_set('session.cookie_lifetime', $originalLifetime);
         }
+    }
+
+    /**
+     * Test addDiscoveryHeader skips preflight requests
+     */
+    public function testAddDiscoveryHeaderSkipsPreflightRequest(): void
+    {
+        $request = new ServerRequest([
+            'environment' => ['REQUEST_METHOD' => 'OPTIONS'],
+        ]);
+        $request = $request->withHeader('Access-Control-Request-Method', 'POST');
+
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader($response, $request);
+
+        // Should NOT have Link header
+        $this->assertEmpty($result->getHeaderLine('Link'));
+    }
+
+    /**
+     * Test addDiscoveryHeader adds header for non-preflight OPTIONS request
+     */
+    public function testAddDiscoveryHeaderAddsHeaderForNonPreflightOptions(): void
+    {
+        $request = new ServerRequest([
+            'environment' => ['REQUEST_METHOD' => 'OPTIONS'],
+        ]);
+        // No Access-Control-Request-Method header
+
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader($response, $request);
+
+        // Should have Link header
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertNotEmpty($linkHeader);
+        $this->assertStringContainsString('public.mercure.example.com', $linkHeader);
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader adds header for GET request
+     */
+    public function testAddDiscoveryHeaderAddsHeaderForGetRequest(): void
+    {
+        $request = new ServerRequest([
+            'environment' => ['REQUEST_METHOD' => 'GET'],
+        ]);
+        $request = $request->withHeader('Access-Control-Request-Method', 'POST');
+
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader($response, $request);
+
+        // Should have Link header (not OPTIONS so not preflight)
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertNotEmpty($linkHeader);
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader adds header when request is null (backward compatibility)
+     */
+    public function testAddDiscoveryHeaderAddsHeaderWhenRequestIsNull(): void
+    {
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader($response, null);
+
+        // Should have Link header (no preflight check)
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertNotEmpty($linkHeader);
+        $this->assertStringContainsString('public.mercure.example.com', $linkHeader);
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader with preflight request but no request passed
+     */
+    public function testAddDiscoveryHeaderWithoutRequestParameter(): void
+    {
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader($response);
+
+        // Should have Link header (backward compatibility)
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertNotEmpty($linkHeader);
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
     }
 }
