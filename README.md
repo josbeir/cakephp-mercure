@@ -191,7 +191,7 @@ Pick the approach that best fits your workflow:
 | **Manual response control** | `Authorization` facade | `Authorization::setCookie($response, $subscribe)` |
 
 > [!TIP]
-> **Easiest:** Use `MercureHelper::url($topics, $subscribe)` directly in templates for quick setup.  
+> **Easiest:** Use `MercureHelper::url($topics, $subscribe)` directly in templates for quick setup.
 > **Best Practice:** For larger applications, handle authorization in controllers using `MercureComponent`, then use `url($topics)` or `getHubUrl($topics)` in templates. This keeps authorization logic centralized and testable.
 
 ### Publishing Updates
@@ -226,6 +226,40 @@ $update = new Update(
 
 Publisher::publish($update);
 ```
+
+> [!TIP]
+> **Using MercureComponent in Controllers:** If you're publishing from a controller, the `MercureComponent` provides convenient methods that eliminate the need to manually create Update objects or call the Publisher facade:
+> 
+> ```php
+> // In your controller
+> public function initialize(): void
+> {
+>     parent::initialize();
+>     $this->loadComponent('Mercure.Mercure');
+> }
+> 
+> public function update($id)
+> {
+>     $book = $this->Books->get($id);
+>     $book = $this->Books->patchEntity($book, $this->request->getData());
+>     $this->Books->save($book);
+> 
+>     // Publish JSON directly - no need for Publisher facade
+>     $this->Mercure->publishJson(
+>         topics: "/books/{$id}",
+>         data: ['status' => $book->status, 'title' => $book->title]
+>     );
+> 
+>     // Or publish a rendered element
+>     $this->Mercure->publishView(
+>         topics: "/books/{$id}",
+>         element: 'Books/item',
+>         data: ['book' => $book]
+>     );
+> }
+> ```
+> 
+> See the [MercureComponent API Reference](#mercurecomponent) for all available methods.
 
 #### Publishing JSON Data
 
@@ -300,20 +334,6 @@ $update = ViewUpdate::create(
 Publisher::publish($update);
 ```
 
-To include a layout:
-
-```php
-// Render with layout
-$update = ViewUpdate::create(
-    topics: 'https://example.com/dashboard',
-    template: 'Dashboard/stats',
-    layout: 'ajax',
-    data: ['stats' => $stats]
-);
-
-Publisher::publish($update);
-```
-
 For private updates that require authorization:
 
 ```php
@@ -329,7 +349,7 @@ Publisher::publish($update);
 
 > [!NOTE]
 > **View Class Configuration:** By default, `ViewUpdate` uses CakePHP's automatic view class selection (your `AppView` if it exists, otherwise the base `View` class). You can override this by setting `view_class` in your configuration:
-> 
+>
 > ```php
 > // In config/mercure.php
 > return [
@@ -349,7 +369,7 @@ The plugin provides a View Helper to generate Mercure URLs in your templates.
 > - `$this->Mercure->url($topics)` - Gets URL **without authorization** (when `$subscribe` is omitted)
 > - `$this->Mercure->url($topics, $subscribe)` - Gets URL **and sets authorization cookie** (when `$subscribe` is provided)
 > - `$this->Mercure->getHubUrl($topics)` - Gets URL **without authorization** (explicit method)
-> 
+>
 > Both `url($topics)` and `getHubUrl($topics)` work for public topics. Use `getHubUrl()` when you want to be explicit that no authorization is happening.
 
 First, load the helper in your controller or `AppView`:
@@ -453,28 +473,28 @@ class BooksController extends AppController
         parent::initialize();
         $this->loadComponent('Mercure.Mercure');
     }
-    
+
     public function view($id)
     {
         $book = $this->Books->get($id);
-        
+
         // Authorize subscriber for private topics
         $this->Mercure->authorize(["https://example.com/books/{$id}"]);
-        
+
         // Or with additional JWT claims
         $this->Mercure->authorize(
             subscribe: ["https://example.com/books/{$id}"],
             additionalClaims: ['user_id' => $this->request->getAttribute('identity')->id]
         );
-        
+
         $this->set('book', $book);
     }
-    
+
     public function logout()
     {
         // Clear authorization on logout
         $this->Mercure->clearAuthorization();
-        
+
         return $this->redirect(['action' => 'login']);
     }
 }
@@ -514,16 +534,16 @@ eventSource.onmessage = (event) => {
 
 > [!WARNING]
 > **Important:** The `url()` method **only sets authorization when the `$subscribe` parameter is provided**. If you're already handling authorization in your controller (via `MercureComponent`), you can use either:
-> 
+>
 > ```php
 > // Authorization already set in controller
 > $this->Mercure->authorize(['/books/123']);
-> 
+>
 > // In template: either of these works (no duplicate authorization)
 > const url1 = '<?= $this->Mercure->url(['/books/123']) ?>';  // No $subscribe = no auth
 > const url2 = '<?= $this->Mercure->getHubUrl(['/books/123']) ?>';  // Explicit
 > ```
-> 
+>
 > Use `getHubUrl()` when you want to be explicit that authorization is handled elsewhere.
 
 #### Using the Facade (Alternative)
@@ -594,9 +614,9 @@ use Mercure\Authorization;
 public function index()
 {
     $response = Authorization::addDiscoveryHeader($this->response);
-    
+
     // Your controller logic here
-    
+
     return $response;
 }
 ```
@@ -821,14 +841,46 @@ public function initialize(): void
 | `authorize(array $subscribe, array $additionalClaims)` | `$this` | Set authorization cookie |
 | `clearAuthorization()` | `$this` | Clear authorization cookie |
 | `discover()` | `$this` | Add Mercure discovery Link header |
+| `publish(Update $update)` | `bool` | Publish an update to the Mercure hub |
+| `publishJson(string\|array $topics, mixed $data, ...)` | `bool` | Publish JSON data (auto-encodes) |
+| `publishView(string\|array $topics, ?string $template, ?string $element, array $data, ...)` | `bool` | Publish rendered view/element |
 | `getCookieName()` | `string` | Get the cookie name |
 | `getHubUrl()` | `string` | Get the hub URL |
 | `getPublicUrl()` | `string` | Get the public hub URL |
 
-All methods support fluent chaining:
+**Authorization methods** support fluent chaining:
 
 ```php
 $this->Mercure->authorize(['/feeds/123'])->discover();
+```
+
+**Publishing convenience methods** make it easy to publish updates directly from controllers:
+
+```php
+// Publish JSON data
+$this->Mercure->publishJson(
+    topics: '/books/123',
+    data: ['status' => 'updated', 'title' => $book->title]
+);
+
+// Publish rendered element
+$this->Mercure->publishView(
+    topics: '/books/123',
+    element: 'Books/item',
+    data: ['book' => $book]
+);
+
+// Publish rendered template with layout
+$this->Mercure->publishView(
+    topics: '/notifications',
+    template: 'Notifications/item',
+    layout: 'ajax',
+    data: ['notification' => $notification]
+);
+
+// For advanced use cases, publish an Update object directly
+$update = new Update('/books/123', json_encode(['data' => 'value']));
+$this->Mercure->publish($update);
 ```
 
 ### Authorization
