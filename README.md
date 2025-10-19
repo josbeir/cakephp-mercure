@@ -24,6 +24,9 @@ Push real-time updates to clients using the Mercure protocol.
 - [Authorization](#authorization)
   - [Publishing Private Updates](#publishing-private-updates)
   - [Setting Authorization Cookies](#setting-authorization-cookies)
+    - [Using the Component (Recommended)](#using-the-component-recommended)
+    - [Using the View Helper](#using-the-view-helper)
+    - [Using the Facade (Alternative)](#using-the-facade-alternative)
 - [Mercure Discovery](#mercure-discovery)
   - [Using the View Helper](#using-the-view-helper)
   - [Using the Facade](#using-the-facade)
@@ -35,6 +38,7 @@ Push real-time updates to clients using the Mercure protocol.
 - [Testing](#testing)
 - [API Reference](#api-reference)
   - [Publisher](#publisher)
+  - [MercureComponent](#mercurecomponent)
   - [Authorization](#authorization-1)
   - [MercureHelper](#mercurehelper)
   - [Update](#update)
@@ -159,6 +163,13 @@ cp vendor/josbeir/cakephp-mercure/config/mercure.php config/mercure.php
 
 ## Basic Usage
 
+The plugin provides multiple integration points depending on your use case:
+
+- **Controllers**: Use the `MercureComponent` for the easiest integration (recommended)
+- **Templates**: Use the `MercureHelper` for view-layer authorization and URLs
+- **Services/Commands**: Use the `Publisher` facade for publishing updates
+- **Manual Control**: Use the `Authorization` facade when you need direct response manipulation
+
 ### Publishing Updates
 
 Use the `Publisher` facade to send updates to the Mercure hub:
@@ -282,7 +293,57 @@ Private updates are only delivered to subscribers with valid JWT tokens containi
 
 ### Setting Authorization Cookies
 
-Use the `MercureHelper` to set authorization cookies in your templates:
+#### Using the Component (Recommended)
+
+The easiest way to manage authorization in controllers is using the `MercureComponent`:
+
+```php
+class BooksController extends AppController
+{
+    public function initialize(): void
+    {
+        parent::initialize();
+        $this->loadComponent('Mercure.Mercure');
+    }
+    
+    public function view($id)
+    {
+        $book = $this->Books->get($id);
+        
+        // Authorize subscriber for private topics
+        $this->Mercure->authorize(["https://example.com/books/{$id}"]);
+        
+        // Or with additional JWT claims
+        $this->Mercure->authorize(
+            subscribe: ["https://example.com/books/{$id}"],
+            additionalClaims: ['user_id' => $this->request->getAttribute('identity')->id]
+        );
+        
+        $this->set('book', $book);
+    }
+    
+    public function logout()
+    {
+        // Clear authorization on logout
+        $this->Mercure->clearAuthorization();
+        
+        return $this->redirect(['action' => 'login']);
+    }
+}
+```
+
+The component automatically handles response modifications and provides a clean, fluent interface. You can also enable automatic discovery headers:
+
+```php
+// In AppController
+$this->loadComponent('Mercure.Mercure', [
+    'autoDiscover' => true,  // Automatically add discovery headers
+]);
+```
+
+#### Using the View Helper
+
+For template-based authorization, use the `MercureHelper`:
 
 ```php
 // In your template
@@ -302,7 +363,9 @@ eventSource.onmessage = (event) => {
 </script>
 ```
 
-Or set authorization from a controller using the `Authorization` facade:
+#### Using the Facade (Alternative)
+
+For more control or when not using controllers, you can use the `Authorization` facade directly:
 
 ```php
 use Mercure\Authorization;
@@ -314,9 +377,7 @@ public function view($id)
     // Allow this user to subscribe to updates for this book
     $response = Authorization::setCookie(
         $this->response,
-        subscribe: [
-            "https://example.com/books/{$id}",
-        ]
+        subscribe: ["https://example.com/books/{$id}"]
     );
 
     $this->set('book', $book);
@@ -494,19 +555,30 @@ Configure the HTTP client used to communicate with the Mercure hub:
 
 ### Cookie Configuration
 
-Customize the authorization cookie settings:
+Customize the authorization cookie settings. Options are passed directly to CakePHP's `Cookie::create()` method.
 
 ```php
 'cookie' => [
     'name' => 'mercureAuthorization',
-    'lifetime' => 3600, // 1 hour
+    'expires' => new DateTime('+1 hour'), // Cookie expiration time
     'domain' => '.example.com', // For cross-subdomain access
     'path' => '/',
     'secure' => true, // HTTPS only in production
-    'sameSite' => 'lax', // or 'strict', 'none'
-    'httpOnly' => true,
+    'samesite' => 'Lax', // or 'Strict', 'None'
+    'httponly' => true,
 ]
 ```
+
+**Supported cookie options:**
+- `name` - Cookie name (default: `mercureAuthorization`)
+- `expires` - Expiration time as `DateTime` object or `null` for session cookie
+- `domain` - Cookie domain (use `.example.com` for cross-subdomain access)
+- `path` - Cookie path (default: `/`)
+- `secure` - Send only over HTTPS (default: `false`)
+- `httponly` - Prevent JavaScript access (default: `true`)
+- `samesite` - CSRF protection: `Strict`, `Lax`, or `None` (default: `Lax`)
+
+For more details, see the [CakePHP Cookie documentation](https://book.cakephp.org/5/en/controllers/request-response.html#setting-cookies).
 
 ## Testing
 
@@ -563,14 +635,49 @@ public function testAuthorization(): void
 | `setInstance(PublisherInterface $publisher)` | `void` | Set custom instance (for testing) |
 | `clear()` | `void` | Clear singleton instance |
 
+### MercureComponent
+
+Controller component for simplified Mercure integration with automatic dependency injection.
+
+**Loading the Component:**
+
+```php
+public function initialize(): void
+{
+    parent::initialize();
+    $this->loadComponent('Mercure.Mercure', [
+        'autoDiscover' => true,  // Optional: auto-add discovery headers
+    ]);
+}
+```
+
+**Methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `authorize(array $subscribe, array $additionalClaims)` | `$this` | Set authorization cookie |
+| `clearAuthorization()` | `$this` | Clear authorization cookie |
+| `discover()` | `$this` | Add Mercure discovery Link header |
+| `getCookieName()` | `string` | Get the cookie name |
+| `getHubUrl()` | `string` | Get the hub URL |
+| `getPublicUrl()` | `string` | Get the public hub URL |
+
+All methods support fluent chaining:
+
+```php
+$this->Mercure->authorize(['/feeds/123'])->discover();
+```
+
 ### Authorization
+
+Static facade for direct authorization management (alternative to component).
 
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `setCookie(Response $response, array $subscribe, array $additionalClaims)` | `Response` | Set authorization cookie |
 | `clearCookie(Response $response)` | `Response` | Clear authorization cookie |
 | `addDiscoveryHeader(Response $response)` | `Response` | Add Mercure discovery Link header |
-| `getCookieName()` | `string` | Get the configured cookie name |
+| `getCookieName()` | `string` | Get the cookie name |
 | `getHubUrl()` | `string` | Get the hub URL |
 | `getPublicUrl()` | `string` | Get the public hub URL |
 
