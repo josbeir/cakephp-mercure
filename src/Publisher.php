@@ -29,11 +29,11 @@ class Publisher extends AbstractMercureFacade
     private static ?PublisherInterface $instance = null;
 
     /**
-     * Get the PublisherService instance
+     * Create the PublisherService instance
      *
      * @throws \Mercure\Exception\MercureException
      */
-    public static function getInstance(): PublisherInterface
+    public static function create(): PublisherInterface
     {
         if (!self::$instance instanceof PublisherInterface) {
             $hubUrl = self::getHubUrl();
@@ -135,6 +135,6 @@ class Publisher extends AbstractMercureFacade
      */
     public static function publish(Update $update): bool
     {
-        return self::getInstance()->publish($update);
+        return self::create()->publish($update);
     }
 }

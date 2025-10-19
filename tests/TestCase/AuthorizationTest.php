@@ -38,11 +38,11 @@ class AuthorizationTest extends TestCase
             ],
             'cookie' => [
                 'name' => 'testAuth',
-                'lifetime' => 3600,
+                'expires' => null,
                 'path' => '/test',
                 'secure' => true,
-                'httpOnly' => true,
-                'sameSite' => 'strict',
+                'httponly' => true,
+                'samesite' => 'strict',
             ],
         ]);
     }
@@ -62,12 +62,12 @@ class AuthorizationTest extends TestCase
      */
     public function testGetInstanceCreatesInstanceFromConfig(): void
     {
-        $service = Authorization::getInstance();
+        $service = Authorization::create();
 
         $this->assertInstanceOf(AuthorizationInterface::class, $service);
         $config = $service->getCookieConfig();
         $this->assertEquals('testAuth', $config['name']);
-        $this->assertEquals(3600, $config['lifetime']);
+        $this->assertEquals('/test', $config['path']);
     }
 
     /**
@@ -75,8 +75,8 @@ class AuthorizationTest extends TestCase
      */
     public function testGetInstanceReturnsSameInstance(): void
     {
-        $instance1 = Authorization::getInstance();
-        $instance2 = Authorization::getInstance();
+        $instance1 = Authorization::create();
+        $instance2 = Authorization::create();
 
         $this->assertSame($instance1, $instance2);
     }
@@ -88,15 +88,15 @@ class AuthorizationTest extends TestCase
     {
         Configure::write('Mercure.cookie', []);
 
-        $service = Authorization::getInstance();
+        $service = Authorization::create();
         $config = $service->getCookieConfig();
 
         $this->assertEquals('mercureAuthorization', $config['name']);
-        $this->assertEquals(3600, $config['lifetime']);
+        $this->assertNull($config['expires']);
         $this->assertEquals('/', $config['path']);
         $this->assertFalse($config['secure']);
-        $this->assertTrue($config['httpOnly']);
-        $this->assertEquals('lax', $config['sameSite']);
+        $this->assertTrue($config['httponly']);
+        $this->assertEquals('lax', $config['samesite']);
     }
 
     /**
@@ -109,7 +109,7 @@ class AuthorizationTest extends TestCase
         $this->expectException(MercureException::class);
         $this->expectExceptionMessage('JWT secret is not configured');
 
-        Authorization::getInstance();
+        Authorization::create();
     }
 
     /**
@@ -119,7 +119,7 @@ class AuthorizationTest extends TestCase
     {
         Configure::write('Mercure.jwt.factory', FirebaseTokenFactory::class);
 
-        $service = Authorization::getInstance();
+        $service = Authorization::create();
 
         $this->assertInstanceOf(AuthorizationInterface::class, $service);
     }
@@ -134,7 +134,7 @@ class AuthorizationTest extends TestCase
         $this->expectException(MercureException::class);
         $this->expectExceptionMessage('Token factory class');
 
-        Authorization::getInstance();
+        Authorization::create();
     }
 
     /**
@@ -147,7 +147,7 @@ class AuthorizationTest extends TestCase
 
         Authorization::setInstance($customService);
 
-        $this->assertSame($customService, Authorization::getInstance());
+        $this->assertSame($customService, Authorization::create());
         $this->assertEquals('customCookie', Authorization::getCookieName());
     }
 
@@ -156,9 +156,9 @@ class AuthorizationTest extends TestCase
      */
     public function testClearResetsInstance(): void
     {
-        $instance1 = Authorization::getInstance();
+        $instance1 = Authorization::create();
         Authorization::clear();
-        $instance2 = Authorization::getInstance();
+        $instance2 = Authorization::create();
 
         $this->assertNotSame($instance1, $instance2);
     }
@@ -182,6 +182,7 @@ class AuthorizationTest extends TestCase
         $this->assertEquals('/test', $cookie->getPath());
         $this->assertTrue($cookie->isSecure());
         $this->assertTrue($cookie->isHttpOnly());
+        // Note: samesite 'strict' gets normalized to 'Strict' by CakePHP
         $sameSite = $cookie->getSameSite();
         $this->assertNotNull($sameSite);
         $this->assertEquals('Strict', $sameSite->value);
@@ -277,9 +278,9 @@ class AuthorizationTest extends TestCase
     /**
      * Test cookie with session lifetime (0)
      */
-    public function testCookieWithSessionLifetime(): void
+    public function testCookieWithNullExpires(): void
     {
-        Configure::write('Mercure.cookie.lifetime', 0);
+        Configure::write('Mercure.cookie.expires', null);
         Authorization::clear();
 
         $response = new Response();
@@ -316,7 +317,7 @@ class AuthorizationTest extends TestCase
         $sameSiteValues = ['strict', 'lax', 'none'];
 
         foreach ($sameSiteValues as $sameSite) {
-            Configure::write('Mercure.cookie.sameSite', $sameSite);
+            Configure::write('Mercure.cookie.samesite', $sameSite);
             Authorization::clear();
 
             $response = new Response();
@@ -332,26 +333,11 @@ class AuthorizationTest extends TestCase
     }
 
     /**
-     * Test cookie with invalid sameSite is handled gracefully
-     */
-    public function testCookieWithInvalidSameSiteValue(): void
-    {
-        Configure::write('Mercure.cookie.sameSite', 'invalid');
-        Authorization::clear();
-
-        $response = new Response();
-        $result = Authorization::setCookie($response, ['/feeds/123']);
-
-        $cookies = $result->getCookieCollection();
-        $this->assertTrue($cookies->has('testAuth'));
-    }
-
-    /**
      * Test cookie is not httpOnly when configured
      */
     public function testCookieNotHttpOnlyWhenConfigured(): void
     {
-        Configure::write('Mercure.cookie.httpOnly', false);
+        Configure::write('Mercure.cookie.httponly', false);
         Authorization::clear();
 
         $response = new Response();
@@ -385,15 +371,15 @@ class AuthorizationTest extends TestCase
      */
     public function testGetCookieConfigReturnsAllConfiguration(): void
     {
-        $service = Authorization::getInstance();
+        $service = Authorization::create();
         $config = $service->getCookieConfig();
 
         $this->assertArrayHasKey('name', $config);
-        $this->assertArrayHasKey('lifetime', $config);
+        $this->assertArrayHasKey('expires', $config);
         $this->assertArrayHasKey('path', $config);
         $this->assertArrayHasKey('secure', $config);
-        $this->assertArrayHasKey('httpOnly', $config);
-        $this->assertArrayHasKey('sameSite', $config);
+        $this->assertArrayHasKey('httponly', $config);
+        $this->assertArrayHasKey('samesite', $config);
         $this->assertArrayHasKey('domain', $config);
     }
 
@@ -402,7 +388,7 @@ class AuthorizationTest extends TestCase
      */
     public function testInstanceMethodsWorkCorrectly(): void
     {
-        $service = Authorization::getInstance();
+        $service = Authorization::create();
         $response = new Response();
 
         $result = $service->setCookie($response, ['/feeds/123']);

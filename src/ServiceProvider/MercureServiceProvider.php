@@ -33,11 +33,11 @@ class MercureServiceProvider extends ServiceProvider
     public function services(ContainerInterface $container): void
     {
         $container->add(PublisherInterface::class, function (): PublisherInterface {
-            return Publisher::getInstance();
+            return Publisher::create();
         });
 
         $container->add(AuthorizationInterface::class, function (): AuthorizationInterface {
-            return Authorization::getInstance();
+            return Authorization::create();
         });
     }
 }

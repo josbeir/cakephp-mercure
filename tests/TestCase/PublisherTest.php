@@ -51,7 +51,7 @@ class PublisherTest extends TestCase
             ],
         ]);
 
-        $instance = Publisher::getInstance();
+        $instance = Publisher::create();
 
         $this->assertInstanceOf(PublisherService::class, $instance);
         $this->assertSame('http://localhost:3000/.well-known/mercure', $instance->getHubUrl());
@@ -69,8 +69,8 @@ class PublisherTest extends TestCase
             ],
         ]);
 
-        $instance1 = Publisher::getInstance();
-        $instance2 = Publisher::getInstance();
+        $instance1 = Publisher::create();
+        $instance2 = Publisher::create();
 
         $this->assertSame($instance1, $instance2);
     }
@@ -83,7 +83,7 @@ class PublisherTest extends TestCase
         $mock = new MockPublisher();
         Publisher::setInstance($mock);
 
-        $instance = Publisher::getInstance();
+        $instance = Publisher::create();
 
         $this->assertSame($mock, $instance);
     }
@@ -100,9 +100,9 @@ class PublisherTest extends TestCase
             ],
         ]);
 
-        $instance1 = Publisher::getInstance();
+        $instance1 = Publisher::create();
         Publisher::clear();
-        $instance2 = Publisher::getInstance();
+        $instance2 = Publisher::create();
 
         $this->assertNotSame($instance1, $instance2);
     }
@@ -183,12 +183,12 @@ class PublisherTest extends TestCase
             ],
         ]);
 
-        $instance1 = Publisher::getInstance();
+        $instance1 = Publisher::create();
 
         $mock = new MockPublisher();
         Publisher::setInstance($mock);
 
-        $instance2 = Publisher::getInstance();
+        $instance2 = Publisher::create();
 
         $this->assertNotSame($instance1, $instance2);
         $this->assertSame($mock, $instance2);
@@ -207,10 +207,10 @@ class PublisherTest extends TestCase
         ]);
 
         // Get instance via static accessor
-        $staticInstance = Publisher::getInstance();
+        $staticInstance = Publisher::create();
 
         // Simulate getting from DI container (what ServiceProvider does)
-        $diInstance = Publisher::getInstance();
+        $diInstance = Publisher::create();
 
         // Should be the same instance
         $this->assertSame($staticInstance, $diInstance);
@@ -228,7 +228,7 @@ class PublisherTest extends TestCase
             ],
         ]);
 
-        $instance = Publisher::getInstance();
+        $instance = Publisher::create();
 
         $this->assertInstanceOf(PublisherService::class, $instance);
     }
@@ -248,7 +248,7 @@ class PublisherTest extends TestCase
             ],
         ]);
 
-        $instance = Publisher::getInstance();
+        $instance = Publisher::create();
 
         $this->assertInstanceOf(PublisherService::class, $instance);
     }
@@ -267,7 +267,7 @@ class PublisherTest extends TestCase
         $this->expectException(MercureException::class);
         $this->expectExceptionMessage('Mercure hub URL is not configured');
 
-        Publisher::getInstance();
+        Publisher::create();
     }
 
     /**
@@ -282,7 +282,7 @@ class PublisherTest extends TestCase
         $this->expectException(MercureException::class);
         $this->expectExceptionMessage('JWT secret or token must be configured');
 
-        Publisher::getInstance();
+        Publisher::create();
     }
 
     /**
@@ -295,7 +295,7 @@ class PublisherTest extends TestCase
             'publisher_jwt' => 'backward-compat-secret',
         ]);
 
-        $instance = Publisher::getInstance();
+        $instance = Publisher::create();
 
         $this->assertInstanceOf(PublisherService::class, $instance);
     }
@@ -312,7 +312,7 @@ class PublisherTest extends TestCase
         Publisher::publish(new Update(topics: '/test1', data: 'data1'));
 
         // Get via "DI" (simulated)
-        $diInstance = Publisher::getInstance();
+        $diInstance = Publisher::create();
         $diInstance->publish(new Update(topics: '/test2', data: 'data2'));
 
         // Both should have been recorded in the same mock instance
@@ -333,7 +333,7 @@ class PublisherTest extends TestCase
             ],
         ]);
 
-        $instance = Publisher::getInstance();
+        $instance = Publisher::create();
 
         $this->assertInstanceOf(PublisherService::class, $instance);
     }
@@ -353,7 +353,7 @@ class PublisherTest extends TestCase
         $this->expectException(MercureException::class);
         $this->expectExceptionMessage("Token provider class 'NonExistent\\TokenProvider' not found");
 
-        Publisher::getInstance();
+        Publisher::create();
     }
 
     /**
@@ -371,7 +371,7 @@ class PublisherTest extends TestCase
         $this->expectException(MercureException::class);
         $this->expectExceptionMessage('Token provider must implement TokenProviderInterface');
 
-        Publisher::getInstance();
+        Publisher::create();
     }
 
     /**
@@ -388,7 +388,7 @@ class PublisherTest extends TestCase
             ],
         ]);
 
-        $instance = Publisher::getInstance();
+        $instance = Publisher::create();
 
         $this->assertInstanceOf(PublisherService::class, $instance);
     }
@@ -409,7 +409,7 @@ class PublisherTest extends TestCase
         $this->expectException(MercureException::class);
         $this->expectExceptionMessage("Token factory class 'NonExistent\\TokenFactory' not found");
 
-        Publisher::getInstance();
+        Publisher::create();
     }
 
     /**
@@ -428,7 +428,7 @@ class PublisherTest extends TestCase
         $this->expectException(MercureException::class);
         $this->expectExceptionMessage('Token factory must implement TokenFactoryInterface');
 
-        Publisher::getInstance();
+        Publisher::create();
     }
 
     /**
@@ -450,7 +450,7 @@ class PublisherTest extends TestCase
             ],
         ]);
 
-        $instance = Publisher::getInstance();
+        $instance = Publisher::create();
 
         $this->assertInstanceOf(PublisherService::class, $instance);
     }
@@ -471,7 +471,7 @@ class PublisherTest extends TestCase
             ],
         ]);
 
-        $instance = Publisher::getInstance();
+        $instance = Publisher::create();
 
         $this->assertInstanceOf(PublisherService::class, $instance);
     }
@@ -491,7 +491,7 @@ class PublisherTest extends TestCase
         $this->expectException(MercureException::class);
         $this->expectExceptionMessage('JWT secret or token must be configured');
 
-        Publisher::getInstance();
+        Publisher::create();
     }
 
     /**

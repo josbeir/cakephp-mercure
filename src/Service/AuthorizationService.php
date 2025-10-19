@@ -5,7 +5,6 @@ namespace Mercure\Service;
 
 use Cake\Http\Cookie\Cookie;
 use Cake\Http\Response;
-use Cake\I18n\DateTime;
 use Mercure\AuthorizationInterface;
 use Mercure\Exception\MercureException;
 use Mercure\Jwt\TokenFactoryInterface;
@@ -37,12 +36,12 @@ class AuthorizationService implements AuthorizationInterface
         $this->tokenFactory = $tokenFactory;
         $this->cookieConfig = $cookieConfig + [
             'name' => 'mercureAuthorization',
-            'lifetime' => 3600,
-            'domain' => null,
             'path' => '/',
+            'domain' => null,
             'secure' => false,
-            'sameSite' => 'lax',
-            'httpOnly' => true,
+            'httponly' => true,
+            'samesite' => 'lax',
+            'expires' => null,
         ];
     }
 
@@ -74,14 +73,13 @@ class AuthorizationService implements AuthorizationInterface
      */
     public function clearCookie(Response $response): Response
     {
-        $cookie = Cookie::create($this->cookieConfig['name'], '')
-            ->withPath($this->cookieConfig['path'])
-            ->withExpired();
+        $options = [
+            'path' => $this->cookieConfig['path'],
+            'domain' => $this->cookieConfig['domain'],
+        ];
 
-        // Set domain if configured
-        if (!empty($this->cookieConfig['domain'])) {
-            $cookie = $cookie->withDomain($this->cookieConfig['domain']);
-        }
+        $cookie = Cookie::create(name: $this->cookieConfig['name'], value: '', options: $options)
+            ->withExpired();
 
         return $response->withCookie($cookie);
     }
@@ -117,31 +115,15 @@ class AuthorizationService implements AuthorizationInterface
      */
     private function buildCookie(string $jwt): Cookie
     {
-        $cookie = Cookie::create($this->cookieConfig['name'], $jwt)
-            ->withPath($this->cookieConfig['path'])
-            ->withSecure($this->cookieConfig['secure'])
-            ->withHttpOnly($this->cookieConfig['httpOnly']);
+        $options = $this->cookieConfig;
+        $name = $options['name'];
+        unset($options['name']);
 
-        // Set domain if configured
-        if (!empty($this->cookieConfig['domain'])) {
-            $cookie = $cookie->withDomain($this->cookieConfig['domain']);
-        }
-
-        // Set expiration if lifetime is specified
-        if ($this->cookieConfig['lifetime'] > 0) {
-            $expiry = DateTime::now()->addSeconds($this->cookieConfig['lifetime']);
-            $cookie = $cookie->withExpiry($expiry);
-        }
-
-        // Set SameSite attribute if configured
-        if (!empty($this->cookieConfig['sameSite'])) {
-            $sameSite = ucfirst(strtolower($this->cookieConfig['sameSite']));
-            if (in_array(strtolower($sameSite), ['strict', 'lax', 'none'], true)) {
-                $cookie = $cookie->withSameSite($sameSite);
-            }
-        }
-
-        return $cookie;
+        return Cookie::create(
+            name: $name,
+            value: $jwt,
+            options: $options,
+        );
     }
 
     /**

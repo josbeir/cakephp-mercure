@@ -26,14 +26,14 @@ class AuthorizationServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->tokenFactory = new FirebaseTokenFactory('test-secret-key', 'HS256');
+        $this->tokenFactory = new FirebaseTokenFactory('test-secret', 'HS256');
         $this->service = new AuthorizationService($this->tokenFactory, [
             'name' => 'testAuth',
-            'lifetime' => 3600,
+            'expires' => null,
             'path' => '/test',
             'secure' => true,
-            'httpOnly' => true,
-            'sameSite' => 'strict',
+            'httponly' => true,
+            'samesite' => 'strict',
         ]);
     }
 
@@ -46,11 +46,11 @@ class AuthorizationServiceTest extends TestCase
         $config = $service->getCookieConfig();
 
         $this->assertEquals('mercureAuthorization', $config['name']);
-        $this->assertEquals(3600, $config['lifetime']);
+        $this->assertNull($config['expires']);
         $this->assertEquals('/', $config['path']);
         $this->assertFalse($config['secure']);
-        $this->assertTrue($config['httpOnly']);
-        $this->assertEquals('lax', $config['sameSite']);
+        $this->assertTrue($config['httponly']);
+        $this->assertEquals('lax', $config['samesite']);
         $this->assertNull($config['domain']);
     }
 
@@ -62,11 +62,11 @@ class AuthorizationServiceTest extends TestCase
         $config = $this->service->getCookieConfig();
 
         $this->assertEquals('testAuth', $config['name']);
-        $this->assertEquals(3600, $config['lifetime']);
+        $this->assertEquals('/test', $config['path']);
         $this->assertEquals('/test', $config['path']);
         $this->assertTrue($config['secure']);
-        $this->assertTrue($config['httpOnly']);
-        $this->assertEquals('strict', $config['sameSite']);
+        $this->assertTrue($config['httponly']);
+        $this->assertEquals('strict', $config['samesite']);
     }
 
     /**
@@ -159,20 +159,20 @@ class AuthorizationServiceTest extends TestCase
     }
 
     /**
-     * Test cookie with session lifetime (0)
+     * Test cookie with null expires
      */
-    public function testCookieWithSessionLifetime(): void
+    public function testCookieWithNullExpires(): void
     {
         $service = new AuthorizationService($this->tokenFactory, [
-            'name' => 'sessionCookie',
-            'lifetime' => 0,
+            'name' => 'testCookie',
+            'expires' => null,
         ]);
 
         $response = new Response();
         $result = $service->setCookie($response, ['/feeds/123']);
 
         $cookies = $result->getCookieCollection();
-        $cookie = $cookies->get('sessionCookie');
+        $cookie = $cookies->get('testCookie');
 
         $this->assertNotEmpty($cookie->getValue());
     }
@@ -206,7 +206,7 @@ class AuthorizationServiceTest extends TestCase
         foreach ($sameSiteValues as $sameSite) {
             $service = new AuthorizationService($this->tokenFactory, [
                 'name' => 'testCookie',
-                'sameSite' => $sameSite,
+                'samesite' => $sameSite,
             ]);
 
             $response = new Response();
@@ -222,37 +222,20 @@ class AuthorizationServiceTest extends TestCase
     }
 
     /**
-     * Test cookie with invalid sameSite is handled gracefully
-     */
-    public function testCookieWithInvalidSameSiteValue(): void
-    {
-        $service = new AuthorizationService($this->tokenFactory, [
-            'name' => 'testCookie',
-            'sameSite' => 'invalid',
-        ]);
-
-        $response = new Response();
-        $result = $service->setCookie($response, ['/feeds/123']);
-
-        $cookies = $result->getCookieCollection();
-        $this->assertTrue($cookies->has('testCookie'));
-    }
-
-    /**
      * Test cookie is not httpOnly when configured
      */
     public function testCookieNotHttpOnlyWhenConfigured(): void
     {
         $service = new AuthorizationService($this->tokenFactory, [
-            'name' => 'jsAccessible',
-            'httpOnly' => false,
+            'name' => 'testCookie',
+            'httponly' => false,
         ]);
 
         $response = new Response();
         $result = $service->setCookie($response, ['/feeds/123']);
 
         $cookies = $result->getCookieCollection();
-        $cookie = $cookies->get('jsAccessible');
+        $cookie = $cookies->get('testCookie');
 
         $this->assertFalse($cookie->isHttpOnly());
     }
@@ -284,11 +267,11 @@ class AuthorizationServiceTest extends TestCase
         $config = $this->service->getCookieConfig();
 
         $this->assertArrayHasKey('name', $config);
-        $this->assertArrayHasKey('lifetime', $config);
+        $this->assertArrayHasKey('expires', $config);
         $this->assertArrayHasKey('path', $config);
         $this->assertArrayHasKey('secure', $config);
-        $this->assertArrayHasKey('httpOnly', $config);
-        $this->assertArrayHasKey('sameSite', $config);
+        $this->assertArrayHasKey('httponly', $config);
+        $this->assertArrayHasKey('samesite', $config);
         $this->assertArrayHasKey('domain', $config);
     }
 

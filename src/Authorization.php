@@ -32,11 +32,11 @@ class Authorization extends AbstractMercureFacade
     private static ?AuthorizationInterface $instance = null;
 
     /**
-     * Get the AuthorizationService instance
+     * Create the AuthorizationService instance
      *
      * @throws \Mercure\Exception\MercureException
      */
-    public static function getInstance(): AuthorizationInterface
+    public static function create(): AuthorizationInterface
     {
         if (!self::$instance instanceof AuthorizationInterface) {
             $jwtConfig = self::getJwtConfig();
@@ -106,7 +106,7 @@ class Authorization extends AbstractMercureFacade
         array $subscribe = [],
         array $additionalClaims = [],
     ): Response {
-        return self::getInstance()->setCookie($response, $subscribe, $additionalClaims);
+        return self::create()->setCookie($response, $subscribe, $additionalClaims);
     }
 
     /**
@@ -118,7 +118,7 @@ class Authorization extends AbstractMercureFacade
      */
     public static function clearCookie(Response $response): Response
     {
-        return self::getInstance()->clearCookie($response);
+        return self::create()->clearCookie($response);
     }
 
     /**
@@ -126,6 +126,6 @@ class Authorization extends AbstractMercureFacade
      */
     public static function getCookieName(): string
     {
-        return self::getInstance()->getCookieName();
+        return self::create()->getCookieName();
     }
 }
