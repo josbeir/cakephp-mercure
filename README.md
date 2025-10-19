@@ -170,6 +170,20 @@ The plugin provides multiple integration points depending on your use case:
 - **Services/Commands**: Use the `Publisher` facade for publishing updates
 - **Manual Control**: Use the `Authorization` facade when you need direct response manipulation
 
+### Choosing Your Authorization Strategy
+
+Pick the approach that best fits your workflow:
+
+| Scenario | Recommended Approach | Method to Use |
+|----------|---------------------|---------------|
+| **Authorize in controller, display URL in template** | `MercureComponent` + `url()` or `getHubUrl()` | `$this->Mercure->authorize()` in controller, `$this->Mercure->url($topics)` or `getHubUrl($topics)` in template |
+| **Authorize directly in template** | `MercureHelper::url()` with `subscribe` | `$this->Mercure->url($topics, $subscribe)` |
+| **Public topics (no authorization)** | `url()` or `getHubUrl()` | `$this->Mercure->url($topics)` or `$this->Mercure->getHubUrl($topics)` |
+| **Manual response control** | `Authorization` facade | `Authorization::setCookie($response, $subscribe)` |
+
+> [!TIP]
+> **Best Practice:** For most applications, handle authorization in controllers using `MercureComponent`, then use `url($topics)` or `getHubUrl($topics)` in templates (without the `$subscribe` parameter). This keeps authorization logic centralized and testable.
+
 ### Publishing Updates
 
 Use the `Publisher` facade to send updates to the Mercure hub:
@@ -207,6 +221,14 @@ Publisher::publish($update);
 
 The plugin provides a View Helper to generate Mercure URLs in your templates.
 
+> [!IMPORTANT]
+> **Authorization Consideration:** When using the `MercureHelper`, understand the difference:
+> - `$this->Mercure->url($topics)` - Gets URL **without authorization** (when `$subscribe` is omitted)
+> - `$this->Mercure->url($topics, $subscribe)` - Gets URL **and sets authorization cookie** (when `$subscribe` is provided)
+> - `$this->Mercure->getHubUrl($topics)` - Gets URL **without authorization** (explicit method)
+> 
+> Both `url($topics)` and `getHubUrl($topics)` work for public topics. Use `getHubUrl()` when you want to be explicit that no authorization is happening.
+
 First, load the helper in your controller or `AppView`:
 
 ```php
@@ -225,7 +247,8 @@ Then subscribe to updates from your templates:
 <div id="book-status">Available</div>
 
 <script>
-const eventSource = new EventSource('<?= $this->Mercure->url('https://example.com/books/1') ?>');
+// For public topics (no authorization needed)
+const eventSource = new EventSource('<?= $this->Mercure->getHubUrl(['https://example.com/books/1']) ?>');
 
 eventSource.onmessage = (event) => {
     const data = JSON.parse(event.data);
@@ -234,11 +257,13 @@ eventSource.onmessage = (event) => {
 </script>
 ```
 
+For public topics, you can use either `url($topics)` or `getHubUrl($topics)` - both generate the URL without authorization. Use `getHubUrl()` to be explicit that no authorization is happening.
+
 Subscribe to multiple topics:
 
 ```php
 <script>
-const url = '<?= $this->Mercure->url([
+const url = '<?= $this->Mercure->getHubUrl([
     'https://example.com/books/1',
     'https://example.com/notifications'
 ]) ?>';
@@ -255,7 +280,7 @@ If you need to access the Mercure URL from an external JavaScript file, store it
 ```php
 <script type="application/json" id="mercure-url">
 <?= json_encode(
-    $this->Mercure->url(['https://example.com/books/1']),
+    $this->Mercure->getHubUrl(['https://example.com/books/1']),
     JSON_UNESCAPED_SLASHES | JSON_HEX_TAG
 ) ?>
 </script>
@@ -343,11 +368,12 @@ $this->loadComponent('Mercure.Mercure', [
 
 #### Using the View Helper
 
-For template-based authorization, use the `MercureHelper`:
+For template-based authorization, use the `MercureHelper::url()` method with the `subscribe` parameter. This **automatically sets the authorization cookie**:
 
 ```php
 // In your template
 <script>
+// url() with subscribe parameter SETS AUTHORIZATION COOKIE
 const url = '<?= $this->Mercure->url(
     topics: ['https://example.com/books/<?= $book->id ?>'],
     subscribe: ['https://example.com/books/<?= $book->id ?>']
@@ -362,6 +388,20 @@ eventSource.onmessage = (event) => {
 };
 </script>
 ```
+
+> [!WARNING]
+> **Important:** The `url()` method **only sets authorization when the `$subscribe` parameter is provided**. If you're already handling authorization in your controller (via `MercureComponent`), you can use either:
+> 
+> ```php
+> // Authorization already set in controller
+> $this->Mercure->authorize(['/books/123']);
+> 
+> // In template: either of these works (no duplicate authorization)
+> const url1 = '<?= $this->Mercure->url(['/books/123']) ?>';  // No $subscribe = no auth
+> const url2 = '<?= $this->Mercure->getHubUrl(['/books/123']) ?>';  // Explicit
+> ```
+> 
+> Use `getHubUrl()` when you want to be explicit that authorization is handled elsewhere.
 
 #### Using the Facade (Alternative)
 
@@ -685,9 +725,9 @@ Static facade for direct authorization management (alternative to component).
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `url(array\|string\|null $topics, array $subscribe, array $additionalClaims)` | `string` | Get hub URL and optionally set authorization |
-| `getHubUrl(array $topics, array $options)` | `string` | Get hub URL with optional topics |
-| `authorize(array $subscribe, array $additionalClaims)` | `void` | Set authorization cookie |
+| `url(array\|string\|null $topics, array $subscribe, array $additionalClaims)` | `string` | Get hub URL **and optionally authorize** (only sets cookie when `$subscribe` is provided) |
+| `getHubUrl(array $topics, array $options)` | `string` | Get hub URL **without authorization** (explicit, no cookie ever set) |
+| `authorize(array $subscribe, array $additionalClaims)` | `void` | Set authorization cookie explicitly |
 | `clearAuthorization()` | `void` | Clear authorization cookie |
 | `discover()` | `void` | Add Mercure discovery Link header |
 | `getCookieName()` | `string` | Get the cookie name |
