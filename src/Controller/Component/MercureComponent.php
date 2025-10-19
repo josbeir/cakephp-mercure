@@ -4,10 +4,11 @@ declare(strict_types=1);
 namespace Mercure\Controller\Component;
 
 use Cake\Controller\Component;
-use Cake\Controller\ComponentRegistry;
 use Cake\Event\EventInterface;
+use Mercure\Authorization;
 use Mercure\AuthorizationInterface;
 use Mercure\Internal\ConfigurationHelper;
+use Mercure\Publisher;
 use Mercure\PublisherInterface;
 use Mercure\Update\JsonUpdate;
 use Mercure\Update\Update;
@@ -70,6 +71,10 @@ use Mercure\Update\ViewUpdate;
  */
 class MercureComponent extends Component
 {
+    protected AuthorizationInterface $authorizationService;
+
+    protected PublisherInterface $publisherService;
+
     /**
      * Default configuration
      *
@@ -80,20 +85,12 @@ class MercureComponent extends Component
     ];
 
     /**
-     * Constructor
-     *
-     * @param \Cake\Controller\ComponentRegistry<\Cake\Controller\Controller> $registry Component registry
-     * @param \Mercure\AuthorizationInterface $authorizationService Authorization service
-     * @param \Mercure\PublisherInterface $publisherService Publisher service
-     * @param array<string, mixed> $config Component configuration
+     * @inheritDoc
      */
-    public function __construct(
-        ComponentRegistry $registry,
-        protected AuthorizationInterface $authorizationService,
-        protected PublisherInterface $publisherService,
-        array $config = [],
-    ) {
-        parent::__construct($registry, $config);
+    public function initialize(array $config): void
+    {
+        $this->authorizationService = Authorization::create();
+        $this->publisherService = Publisher::create();
     }
 
     /**
