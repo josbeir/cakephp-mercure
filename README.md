@@ -165,8 +165,8 @@ cp vendor/josbeir/cakephp-mercure/config/mercure.php config/mercure.php
 
 The plugin provides multiple integration points depending on your use case:
 
-- **Controllers**: Use the `MercureComponent` for the easiest integration (recommended)
-- **Templates**: Use the `MercureHelper` for view-layer authorization and URLs
+- **Templates**: Use the `MercureHelper` for the easiest, self-contained integration (handles authorization and URLs)
+- **Controllers**: Use the `MercureComponent` for centralized authorization and separation of concerns (recommended for testability)
 - **Services/Commands**: Use the `Publisher` facade for publishing updates
 - **Manual Control**: Use the `Authorization` facade when you need direct response manipulation
 
@@ -182,7 +182,8 @@ Pick the approach that best fits your workflow:
 | **Manual response control** | `Authorization` facade | `Authorization::setCookie($response, $subscribe)` |
 
 > [!TIP]
-> **Best Practice:** For most applications, handle authorization in controllers using `MercureComponent`, then use `url($topics)` or `getHubUrl($topics)` in templates (without the `$subscribe` parameter). This keeps authorization logic centralized and testable.
+> **Easiest:** Use `MercureHelper::url($topics, $subscribe)` directly in templates for quick setup.  
+> **Best Practice:** For larger applications, handle authorization in controllers using `MercureComponent`, then use `url($topics)` or `getHubUrl($topics)` in templates. This keeps authorization logic centralized and testable.
 
 ### Publishing Updates
 
@@ -318,9 +319,9 @@ Private updates are only delivered to subscribers with valid JWT tokens containi
 
 ### Setting Authorization Cookies
 
-#### Using the Component (Recommended)
+#### Using the Component (Recommended for Separation of Concerns)
 
-The easiest way to manage authorization in controllers is using the `MercureComponent`:
+For centralized, testable authorization logic, use the `MercureComponent` in controllers:
 
 ```php
 class BooksController extends AppController
@@ -357,7 +358,7 @@ class BooksController extends AppController
 }
 ```
 
-The component automatically handles response modifications and provides a clean, fluent interface. You can also enable automatic discovery headers:
+The component provides separation of concerns (authorization in controller, URLs in template) and is fully testable. You can also enable automatic discovery headers:
 
 ```php
 // In AppController
@@ -366,9 +367,9 @@ $this->loadComponent('Mercure.Mercure', [
 ]);
 ```
 
-#### Using the View Helper
+#### Using the View Helper (Easiest)
 
-For template-based authorization, use the `MercureHelper::url()` method with the `subscribe` parameter. This **automatically sets the authorization cookie**:
+For the simplest, self-contained approach, use the `MercureHelper::url()` method with the `subscribe` parameter. This **automatically handles both authorization and URL generation** in one call:
 
 ```php
 // In your template
@@ -677,7 +678,7 @@ public function testAuthorization(): void
 
 ### MercureComponent
 
-Controller component for simplified Mercure integration with automatic dependency injection.
+Controller component for centralized authorization with separation of concerns and automatic dependency injection.
 
 **Loading the Component:**
 
