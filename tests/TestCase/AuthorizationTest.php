@@ -7,9 +7,9 @@ use Cake\Core\Configure;
 use Cake\Http\Response;
 use Cake\TestSuite\TestCase;
 use Mercure\Authorization;
-use Mercure\AuthorizationInterface;
 use Mercure\Exception\MercureException;
 use Mercure\Jwt\FirebaseTokenFactory;
+use Mercure\Service\AuthorizationInterface;
 use Mercure\Service\AuthorizationService;
 
 /**

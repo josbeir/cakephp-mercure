@@ -787,7 +787,7 @@ For testing, mock the Publisher service to avoid actual HTTP calls:
 
 ```php
 use Mercure\Publisher;
-use Mercure\PublisherInterface;
+use Mercure\Service\PublisherInterface;
 
 // In your test
 public function testPublishing(): void
@@ -811,7 +811,7 @@ Similarly for Authorization:
 
 ```php
 use Mercure\Authorization;
-use Mercure\AuthorizationInterface;
+use Mercure\Service\AuthorizationInterface;
 
 public function testAuthorization(): void
 {

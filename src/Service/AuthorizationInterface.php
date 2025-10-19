@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Mercure;
+namespace Mercure\Service;
 
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;

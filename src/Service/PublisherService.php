@@ -8,7 +8,6 @@ use Exception;
 use Mercure\Exception\MercureException;
 use Mercure\Internal\QueryBuilder;
 use Mercure\Jwt\TokenProviderInterface;
-use Mercure\PublisherInterface;
 use Mercure\Update\Update;
 
 /**

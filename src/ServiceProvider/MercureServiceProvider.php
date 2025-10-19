@@ -6,9 +6,9 @@ namespace Mercure\ServiceProvider;
 use Cake\Core\ContainerInterface;
 use Cake\Core\ServiceProvider;
 use Mercure\Authorization;
-use Mercure\AuthorizationInterface;
 use Mercure\Publisher;
-use Mercure\PublisherInterface;
+use Mercure\Service\AuthorizationInterface;
+use Mercure\Service\PublisherInterface;
 
 /**
  * Mercure Service Provider

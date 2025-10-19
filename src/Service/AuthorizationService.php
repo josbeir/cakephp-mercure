@@ -7,7 +7,6 @@ use Cake\Http\Cookie\Cookie;
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;
 use DateTimeImmutable;
-use Mercure\AuthorizationInterface;
 use Mercure\Exception\MercureException;
 use Mercure\Internal\ConfigurationHelper;
 use Mercure\Jwt\TokenFactoryInterface;

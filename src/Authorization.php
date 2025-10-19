@@ -9,6 +9,7 @@ use Mercure\Exception\MercureException;
 use Mercure\Internal\ConfigurationHelper;
 use Mercure\Jwt\FirebaseTokenFactory;
 use Mercure\Jwt\TokenFactoryInterface;
+use Mercure\Service\AuthorizationInterface;
 use Mercure\Service\AuthorizationService;
 
 /**
@@ -79,7 +80,7 @@ class Authorization
      *
      * Useful for testing or when you want to use a different configuration.
      *
-     * @param \Mercure\AuthorizationInterface $service Authorization service instance
+     * @param \Mercure\Service\AuthorizationInterface $service Authorization service instance
      */
     public static function setInstance(AuthorizationInterface $service): void
     {

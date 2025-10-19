@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Mercure\TestSuite;
 
-use Mercure\PublisherInterface;
+use Mercure\Service\PublisherInterface;
 use Mercure\Update\Update;
 
 /**

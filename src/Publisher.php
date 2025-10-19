@@ -10,6 +10,7 @@ use Mercure\Jwt\FirebaseTokenFactory;
 use Mercure\Jwt\StaticTokenProvider;
 use Mercure\Jwt\TokenFactoryInterface;
 use Mercure\Jwt\TokenProviderInterface;
+use Mercure\Service\PublisherInterface;
 use Mercure\Service\PublisherService;
 use Mercure\Update\Update;
 
@@ -113,7 +114,7 @@ class Publisher
      *
      * Useful for testing or when you want to use a different configuration.
      *
-     * @param \Mercure\PublisherInterface $publisher Publisher service instance
+     * @param \Mercure\Service\PublisherInterface $publisher Publisher service instance
      */
     public static function setInstance(PublisherInterface $publisher): void
     {
