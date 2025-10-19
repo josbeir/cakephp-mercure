@@ -276,6 +276,13 @@ $update = JsonUpdate::create(
 );
 
 Publisher::publish($update);
+
+// Or use the fluent builder pattern
+$update = (new JsonUpdate('https://example.com/books/1'))
+    ->data(['status' => 'OutOfStock', 'quantity' => 0])
+    ->build();
+
+Publisher::publish($update);
 ```
 
 You can customize JSON encoding options:
@@ -288,10 +295,16 @@ $update = JsonUpdate::create(
     jsonOptions: JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
 );
 
+// Or using the fluent builder
+$update = (new JsonUpdate('https://example.com/books/1'))
+    ->data(['title' => 'Book & Title', 'price' => 19.99])
+    ->jsonOptions(JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+    ->build();
+
 Publisher::publish($update);
 ```
 
-For private updates, set the `private` parameter:
+For private updates and event metadata:
 
 ```php
 $update = JsonUpdate::create(
@@ -299,6 +312,15 @@ $update = JsonUpdate::create(
     data: ['message' => 'New notification', 'unread' => 5],
     private: true
 );
+
+// Or chain multiple options with the fluent builder
+$update = (new JsonUpdate('https://example.com/books/1'))
+    ->data(['title' => 'New Book', 'price' => 29.99])
+    ->private()
+    ->id('book-123')
+    ->type('book.created')
+    ->retry(5000)
+    ->build();
 
 Publisher::publish($update);
 ```
@@ -315,8 +337,14 @@ use Mercure\Update\ViewUpdate;
 $update = ViewUpdate::create(
     topics: 'https://example.com/books/1',
     element: 'Books/item',
-    data: ['book' => $book]
+    viewVars: ['book' => $book]
 );
+
+// Or use the fluent builder pattern
+$update = (new ViewUpdate('https://example.com/books/1'))
+    ->element('Books/item')
+    ->viewVars(['book' => $book])
+    ->build();
 
 Publisher::publish($update);
 ```
@@ -328,21 +356,37 @@ You can also render full templates:
 $update = ViewUpdate::create(
     topics: 'https://example.com/notifications',
     template: 'Notifications/item',
-    data: ['notification' => $notification]
+    viewVars: ['notification' => $notification]
 );
+
+// Or with the fluent builder - add view options too
+$update = (new ViewUpdate('https://example.com/notifications'))
+    ->template('Notifications/item')
+    ->viewVars(['notification' => $notification])
+    ->viewOptions(['plugin' => 'MyPlugin'])
+    ->build();
 
 Publisher::publish($update);
 ```
 
-For private updates that require authorization:
+For private updates with event metadata:
 
 ```php
 $update = ViewUpdate::create(
     topics: 'https://example.com/users/123/messages',
     element: 'Messages/item',
-    data: ['message' => $message],
+    viewVars: ['message' => $message],
     private: true
 );
+
+// Or chain all options with the fluent builder
+$update = (new ViewUpdate('https://example.com/users/123/messages'))
+    ->element('Messages/item')
+    ->viewVars(['message' => $message])
+    ->private()
+    ->id('msg-456')
+    ->type('message.new')
+    ->build();
 
 Publisher::publish($update);
 ```
@@ -966,7 +1010,40 @@ new Update(
 
 ### JsonUpdate
 
-Specialized Update class that automatically encodes data to JSON.
+Specialized Update class that automatically encodes data to JSON. Supports both static factory method and fluent builder pattern.
+
+**Fluent Builder Pattern (Recommended):**
+
+```php
+use Mercure\Update\JsonUpdate;
+
+// Basic usage
+$update = (new JsonUpdate('/books/1'))
+    ->data(['status' => 'OutOfStock', 'quantity' => 0])
+    ->build();
+
+// With all options
+$update = (new JsonUpdate('/books/1'))
+    ->data(['title' => 'Book', 'price' => 29.99])
+    ->jsonOptions(JSON_UNESCAPED_UNICODE)
+    ->private()
+    ->id('book-123')
+    ->type('book.updated')
+    ->retry(5000)
+    ->build();
+```
+
+**Builder Methods:**
+
+| Method | Parameter | Returns | Description |
+|--------|-----------|---------|-------------|
+| `data(mixed $data)` | Data to encode | `$this` | Set data to encode as JSON |
+| `jsonOptions(int $options)` | JSON options | `$this` | Set JSON encoding options |
+| `private(bool $private = true)` | Private flag | `$this` | Mark as private update |
+| `id(string $id)` | Event ID | `$this` | Set SSE event ID |
+| `type(string $type)` | Event type | `$this` | Set SSE event type |
+| `retry(int $retry)` | Retry delay (ms) | `$this` | Set retry delay |
+| `build()` | - | `Update` | Build and return Update |
 
 **Static Factory Method:**
 
@@ -979,35 +1056,51 @@ JsonUpdate::create(
     ?string $type = null,
     ?int $retry = null,
     int $jsonOptions = JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
-): JsonUpdate
-```
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `$topics` | `string\|array` | Topic IRI(s) for the update |
-| `$data` | `mixed` | Data to encode as JSON (array, object, etc.) |
-| `$private` | `bool` | Whether this is a private update |
-| `$id` | `?string` | Optional SSE event ID |
-| `$type` | `?string` | Optional SSE event type |
-| `$retry` | `?int` | Optional reconnection time in milliseconds |
-| `$jsonOptions` | `int` | JSON encoding options |
-
-**Example:**
-
-```php
-use Mercure\Update\JsonUpdate;
-
-$update = JsonUpdate::create(
-    topics: '/books/1',
-    data: ['status' => 'OutOfStock', 'quantity' => 0]
-);
+): Update
 ```
 
 ### ViewUpdate
 
-Specialized Update class that automatically renders CakePHP views or elements.
+Specialized Update class that automatically renders CakePHP views or elements. Supports both static factory method and fluent builder pattern.
+
+**Fluent Builder Pattern (Recommended):**
+
+```php
+use Mercure\Update\ViewUpdate;
+
+// Render element
+$update = (new ViewUpdate('/books/1'))
+    ->element('Books/item')
+    ->viewVars(['book' => $book])
+    ->build();
+
+// Render template with all options
+$update = (new ViewUpdate('/notifications'))
+    ->template('Notifications/item')
+    ->viewVars(['notification' => $notification])
+    ->layout('ajax')
+    ->viewOptions(['plugin' => 'MyPlugin'])
+    ->private()
+    ->id('notif-123')
+    ->type('notification.new')
+    ->build();
+```
+
+**Builder Methods:**
+
+| Method | Parameter | Returns | Description |
+|--------|-----------|---------|-------------|
+| `template(string $template)` | Template name | `$this` | Set template to render |
+| `element(string $element)` | Element name | `$this` | Set element to render |
+| `viewVars(array $viewVars)` | View variables | `$this` | Set view variables |
+| `set(string $key, mixed $value)` | Key, value | `$this` | Set single view variable |
+| `layout(?string $layout)` | Layout name | `$this` | Set layout (null to disable) |
+| `viewOptions(array $options)` | ViewBuilder options | `$this` | Set ViewBuilder options |
+| `private(bool $private = true)` | Private flag | `$this` | Mark as private update |
+| `id(string $id)` | Event ID | `$this` | Set SSE event ID |
+| `type(string $type)` | Event type | `$this` | Set SSE event type |
+| `retry(int $retry)` | Retry delay (ms) | `$this` | Set retry delay |
+| `build()` | - | `Update` | Build and return Update |
 
 **Static Factory Method:**
 
@@ -1016,13 +1109,14 @@ ViewUpdate::create(
     string|array $topics,
     ?string $template = null,
     ?string $element = null,
-    array $data = [],
+    array $viewVars = [],
     ?string $layout = null,
     bool $private = false,
     ?string $id = null,
     ?string $type = null,
-    ?int $retry = null
-): ViewUpdate
+    ?int $retry = null,
+    array $viewOptions = []
+): Update
 ```
 
 **Parameters:**

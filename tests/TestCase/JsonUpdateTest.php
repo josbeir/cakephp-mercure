@@ -316,7 +316,7 @@ class JsonUpdateTest extends TestCase
     public function testJsonUpdateInheritsValidation(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('At least one topic must be provided');
+        $this->expectExceptionMessage('At least one topic must be specified');
 
         JsonUpdate::create(
             topics: [],
@@ -397,5 +397,130 @@ class JsonUpdateTest extends TestCase
         );
 
         $this->assertInstanceOf(Update::class, $update);
+    }
+
+    /**
+     * Test fluent builder pattern
+     */
+    public function testFluentBuilderPattern(): void
+    {
+        $update = (new JsonUpdate('/books/1'))
+            ->data(['status' => 'OutOfStock', 'quantity' => 0])
+            ->private()
+            ->id('book-123')
+            ->type('book.updated')
+            ->retry(3000)
+            ->build();
+
+        $this->assertInstanceOf(Update::class, $update);
+        $this->assertEquals(['/books/1'], $update->getTopics());
+        $this->assertTrue($update->isPrivate());
+        $this->assertEquals('book-123', $update->getId());
+        $this->assertEquals('book.updated', $update->getType());
+        $this->assertEquals(3000, $update->getRetry());
+        $this->assertEquals('{"status":"OutOfStock","quantity":0}', $update->getData());
+    }
+
+    /**
+     * Test fluent builder with multiple topics
+     */
+    public function testFluentBuilderWithMultipleTopics(): void
+    {
+        $update = (new JsonUpdate(['/books/1', '/notifications']))
+            ->data(['message' => 'Update'])
+            ->build();
+
+        $this->assertEquals(['/books/1', '/notifications'], $update->getTopics());
+        $this->assertEquals('{"message":"Update"}', $update->getData());
+    }
+
+    /**
+     * Test fluent builder with constructor
+     */
+    public function testFluentBuilderWithConstructor(): void
+    {
+        $update = (new JsonUpdate('/test'))
+            ->data(['test' => 'data'])
+            ->build();
+
+        $this->assertEquals(['/test'], $update->getTopics());
+        $this->assertEquals('{"test":"data"}', $update->getData());
+    }
+
+    /**
+     * Test fluent builder with custom JSON options
+     */
+    public function testFluentBuilderWithJsonOptions(): void
+    {
+        $update = (new JsonUpdate('/test'))
+            ->data(['html' => '<div>Test</div>', 'path' => '/some/path'])
+            ->jsonOptions(JSON_HEX_TAG | JSON_UNESCAPED_SLASHES)
+            ->build();
+
+        $this->assertStringContainsString('\u003Cdiv\u003E', $update->getData());
+        $this->assertStringContainsString('/some/path', $update->getData());
+    }
+
+    /**
+     * Test fluent builder throws exception when no topics
+     */
+    public function testFluentBuilderThrowsExceptionWhenNoTopics(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('At least one topic must be specified');
+
+        (new JsonUpdate())
+            ->data(['test' => 'data'])
+            ->build();
+    }
+
+    /**
+     * Test fluent builder with null data
+     */
+    public function testFluentBuilderWithNullData(): void
+    {
+        $update = (new JsonUpdate('/test'))
+            ->data(null)
+            ->build();
+
+        $this->assertEquals('null', $update->getData());
+    }
+
+    /**
+     * Test fluent builder with object data
+     */
+    public function testFluentBuilderWithObjectData(): void
+    {
+        $obj = new stdClass();
+        $obj->name = 'Test';
+        $obj->value = 123;
+
+        $update = (new JsonUpdate('/test'))
+            ->data($obj)
+            ->build();
+
+        $decoded = json_decode($update->getData(), true);
+        $this->assertEquals('Test', $decoded['name']);
+        $this->assertEquals(123, $decoded['value']);
+    }
+
+    /**
+     * Test fluent builder method chaining
+     */
+    public function testFluentBuilderMethodChaining(): void
+    {
+        $builder = new JsonUpdate('/test');
+        $builder->data(['initial' => 'data']);
+        $builder->private(true);
+        $builder->id('test-id');
+        $builder->type('test.type');
+        $builder->retry(1000);
+
+        $update = $builder->build();
+
+        $this->assertTrue($update->isPrivate());
+        $this->assertEquals('test-id', $update->getId());
+        $this->assertEquals('test.type', $update->getType());
+        $this->assertEquals(1000, $update->getRetry());
     }
 }

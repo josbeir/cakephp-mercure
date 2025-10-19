@@ -11,6 +11,7 @@ use Mercure\Publisher;
 use Mercure\Service\AuthorizationInterface;
 use Mercure\Service\PublisherInterface;
 use Mercure\Update\JsonUpdate;
+use Mercure\Update\SimpleUpdate;
 use Mercure\Update\Update;
 use Mercure\Update\ViewUpdate;
 
@@ -48,10 +49,16 @@ use Mercure\Update\ViewUpdate;
  *     $book = $this->Books->patchEntity($book, $this->request->getData());
  *     $this->Books->save($book);
  *
- *     // Publish update
+ *     // Publish JSON update
  *     $this->Mercure->publishJson(
  *         topics: "/books/{$id}",
  *         data: ['status' => $book->status, 'title' => $book->title]
+ *     );
+ *
+ *     // Or publish simple string data
+ *     $this->Mercure->publishSimple(
+ *         topics: "/books/{$id}",
+ *         data: 'Book updated'
  *     );
  * }
  *
@@ -299,6 +306,64 @@ class MercureComponent extends Component
     }
 
     /**
+     * Publish simple string data to the Mercure hub
+     *
+     * Publishes raw string data without any encoding or transformation.
+     * Useful for pre-encoded JSON, plain text, HTML fragments, or any string data.
+     *
+     * Example:
+     * ```
+     * // Plain text message
+     * $this->Mercure->publishSimple('/notifications', 'Server maintenance in 5 minutes');
+     *
+     * // Pre-encoded JSON
+     * $json = json_encode(['status' => 'updated']);
+     * $this->Mercure->publishSimple('/books/123', $json);
+     *
+     * // HTML fragment
+     * $html = '<div class="alert">Alert message</div>';
+     * $this->Mercure->publishSimple('/alerts', $html);
+     *
+     * // Private update with metadata
+     * $this->Mercure->publishSimple(
+     *     topics: '/users/123/messages',
+     *     data: 'New private message',
+     *     private: true,
+     *     id: 'msg-456',
+     *     type: 'message.new'
+     * );
+     * ```
+     *
+     * @param array<string>|string $topics Topic(s) to publish to
+     * @param string $data Raw string data to publish
+     * @param bool $private Whether this is a private update
+     * @param string|null $id Optional event ID
+     * @param string|null $type Optional event type
+     * @param int|null $retry Optional retry delay in milliseconds
+     * @return bool True if successful
+     * @throws \Mercure\Exception\MercureException
+     */
+    public function publishSimple(
+        array|string $topics,
+        string $data,
+        bool $private = false,
+        ?string $id = null,
+        ?string $type = null,
+        ?int $retry = null,
+    ): bool {
+        $update = SimpleUpdate::create(
+            topics: $topics,
+            data: $data,
+            private: $private,
+            id: $id,
+            type: $type,
+            retry: $retry,
+        );
+
+        return $this->publisherService->publish($update);
+    }
+
+    /**
      * Publish rendered view/element to the Mercure hub
      *
      * Automatically renders a template or element and publishes the output.
@@ -355,7 +420,7 @@ class MercureComponent extends Component
             topics: $topics,
             template: $template,
             element: $element,
-            data: $data,
+            viewVars: $data,
             layout: $layout,
             private: $private,
             id: $id,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 use Rector\CodeQuality\Rector\If_\SimplifyIfElseToTernaryRector;
 use Rector\Config\RectorConfig;
 use Rector\Strict\Rector\Empty_\DisallowedEmptyRuleFixerRector;
+use Rector\TypeDeclaration\Rector\ClassMethod\ReturnTypeFromStrictFluentReturnRector;
 use Rector\ValueObject\PhpVersion;
 
 return RectorConfig::configure()
@@ -15,6 +16,8 @@ return RectorConfig::configure()
     ->withSkip([
         DisallowedEmptyRuleFixerRector::class,
         SimplifyIfElseToTernaryRector::class,
+        // CakePHP coding standards don't allow return type hints on fluent methods
+        ReturnTypeFromStrictFluentReturnRector::class,
     ])
     ->withImportNames(
         importNames: true,

@@ -6,38 +6,104 @@ namespace Mercure\Update;
 use JsonException;
 
 /**
- * JSON Update
+ * JSON Update Builder
  *
- * Specialized Update class that automatically encodes data to JSON.
- * This eliminates the need to manually json_encode arrays before publishing.
+ * Fluent builder for creating Update instances from JSON-encoded data.
+ * This class provides a clean, chainable API for configuring and encoding JSON updates.
  *
  * Example usage:
  * ```
  * // Simple array
+ * $update = (new JsonUpdate('/books/1'))
+ *     ->data(['status' => 'OutOfStock', 'quantity' => 0])
+ *     ->build();
+ *
+ * // With JSON encoding options
+ * $update = (new JsonUpdate('/books/1'))
+ *     ->data(['title' => 'Book & Title'])
+ *     ->jsonOptions(JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+ *     ->build();
+ *
+ * // Private update
+ * $update = (new JsonUpdate('/users/123/notifications'))
+ *     ->data(['message' => 'New notification'])
+ *     ->private()
+ *     ->build();
+ *
+ * // Multiple topics with metadata
+ * $update = (new JsonUpdate(['/books/1', '/notifications']))
+ *     ->data(['book' => $book])
+ *     ->private()
+ *     ->id('book-123')
+ *     ->type('book.updated')
+ *     ->retry(3000)
+ *     ->build();
+ *
+ * // Static create() method also supported
  * $update = JsonUpdate::create(
  *     topics: '/books/1',
  *     data: ['status' => 'OutOfStock', 'quantity' => 0]
  * );
- *
- * // With JSON encoding options
- * $update = JsonUpdate::create(
- *     topics: '/books/1',
- *     data: ['title' => 'Book & Title'],
- *     jsonOptions: JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
- * );
- *
- * // Private update
- * $update = JsonUpdate::create(
- *     topics: '/users/123/notifications',
- *     data: ['message' => 'New notification'],
- *     private: true
- * );
  * ```
  */
-class JsonUpdate extends Update
+class JsonUpdate extends AbstractUpdateBuilder
 {
+    protected int $jsonOptions = JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR;
+
     /**
-     * Create a new JsonUpdate instance
+     * Set JSON encoding options
+     *
+     * @param int $options JSON encoding options (e.g., JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+     * @return $this
+     */
+    public function jsonOptions(int $options)
+    {
+        $this->jsonOptions = $options;
+
+        return $this;
+    }
+
+    /**
+     * Build and return the Update instance
+     *
+     * @throws \InvalidArgumentException
+     * @throws \JsonException If JSON encoding fails
+     */
+    public function build(): Update
+    {
+        $this->validate();
+
+        $encodedData = $this->encodeJson($this->data, $this->jsonOptions);
+
+        return $this->createUpdate($encodedData);
+    }
+
+    /**
+     * Encode data to JSON
+     *
+     * @param mixed $data Data to encode
+     * @param int $options JSON encoding options
+     * @return string JSON-encoded string
+     * @throws \JsonException If encoding fails
+     */
+    protected function encodeJson(mixed $data, int $options): string
+    {
+        try {
+            $encoded = json_encode($data, $options);
+            assert(is_string($encoded)); // JSON_THROW_ON_ERROR ensures string or exception
+
+            return $encoded;
+        } catch (JsonException $jsonException) {
+            throw new JsonException(
+                sprintf('Failed to encode data to JSON: %s', $jsonException->getMessage()),
+                $jsonException->getCode(),
+                $jsonException,
+            );
+        }
+    }
+
+    /**
+     * Static create method for creating updates with a single call
      *
      * @param array<string>|string $topics Topic(s) to publish to
      * @param mixed $data Data to encode as JSON (array, object, etc.)
@@ -57,40 +123,16 @@ class JsonUpdate extends Update
         ?string $type = null,
         ?int $retry = null,
         int $jsonOptions = JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
-    ): self {
-        $encodedData = static::encodeJson($data, $jsonOptions);
-
-        return new self(
-            topics: $topics,
-            data: $encodedData,
-            private: $private,
-            id: $id,
-            type: $type,
-            retry: $retry,
-        );
-    }
-
-    /**
-     * Encode data to JSON
-     *
-     * @param mixed $data Data to encode
-     * @param int $options JSON encoding options
-     * @return string JSON-encoded string
-     * @throws \JsonException If encoding fails
-     */
-    protected static function encodeJson(mixed $data, int $options): string
-    {
-        try {
-            $encoded = json_encode($data, $options);
-            assert(is_string($encoded)); // JSON_THROW_ON_ERROR ensures string or exception
-
-            return $encoded;
-        } catch (JsonException $jsonException) {
-            throw new JsonException(
-                sprintf('Failed to encode data to JSON: %s', $jsonException->getMessage()),
-                $jsonException->getCode(),
-                $jsonException,
-            );
-        }
+    ): Update {
+        // Safe to use static here - allows subclasses to extend JsonUpdate
+        /** @phpstan-ignore-next-line new.static */
+        return (new static($topics))
+            ->data($data)
+            ->jsonOptions($jsonOptions)
+            ->private($private)
+            ->id($id)
+            ->type($type)
+            ->retry($retry)
+            ->build();
     }
 }

@@ -152,5 +152,30 @@ return [
           * You can override this to use a custom View class:
           * 'view_class' => \App\View\CustomView::class,
           */
+
+        /**
+         * ViewUpdate View Options
+         *
+         * ViewUpdate::create() accepts a 'viewOptions' parameter to customize ViewBuilder behavior.
+         *
+         * Supported options:
+         * - 'className' => Custom View class for this specific update
+         * - 'plugin' => Plugin name containing the template
+         * - 'theme' => Theme name for template lookup
+         * - 'name' => View name (overrides template/element name)
+         *
+         * Example:
+         * ```php
+         * $update = ViewUpdate::create(
+         *     topics: '/books/1',
+         *     element: 'Books/item',
+         *     data: ['book' => $book],
+         *     viewOptions: [
+         *         'plugin' => 'MyPlugin',
+         *         'theme' => 'custom',
+         *     ]
+         * );
+         * ```
+         */
      ],
  ];

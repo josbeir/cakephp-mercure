@@ -49,7 +49,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/books/1',
             element: 'test_item',
-            data: [
+            viewVars: [
                 'title' => 'Test Book',
                 'content' => 'Test content',
             ],
@@ -70,7 +70,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/test',
             template: 'Test/view',
-            data: [
+            viewVars: [
                 'message' => 'Hello World',
                 'count' => 42,
             ],
@@ -90,7 +90,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: ['/books/1', '/notifications'],
             element: 'test_item',
-            data: ['title' => 'Test', 'content' => 'Content'],
+            viewVars: ['title' => 'Test', 'content' => 'Content'],
         );
 
         $this->assertEquals(['/books/1', '/notifications'], $update->getTopics());
@@ -104,7 +104,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/users/123/private',
             element: 'test_item',
-            data: ['title' => 'Private', 'content' => 'Secret'],
+            viewVars: ['title' => 'Private', 'content' => 'Secret'],
             private: true,
         );
 
@@ -120,7 +120,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/test',
             element: 'test_item',
-            data: ['title' => 'Test', 'content' => 'Test'],
+            viewVars: ['title' => 'Test', 'content' => 'Test'],
             id: 'event-123',
         );
 
@@ -135,7 +135,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/test',
             element: 'test_item',
-            data: ['title' => 'Test', 'content' => 'Test'],
+            viewVars: ['title' => 'Test', 'content' => 'Test'],
             type: 'update',
         );
 
@@ -150,7 +150,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/test',
             element: 'test_item',
-            data: ['title' => 'Test', 'content' => 'Test'],
+            viewVars: ['title' => 'Test', 'content' => 'Test'],
             retry: 5000,
         );
 
@@ -165,7 +165,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/test',
             element: 'test_item',
-            data: [
+            viewVars: [
                 'title' => '<script>alert("xss")</script>',
                 'content' => 'Safe content',
             ],
@@ -186,23 +186,25 @@ class ViewUpdateTest extends TestCase
 
         ViewUpdate::create(
             topics: '/test',
-            data: ['title' => 'Test', 'content' => 'Test'],
+            viewVars: ['title' => 'Test', 'content' => 'Test'],
         );
     }
 
     /**
      * Test view update throws exception when both template and element specified
+     *
+     * Note: With the fluent builder, setting one clears the other, so we test
+     * that neither template nor element is set when trying to build
      */
     public function testViewUpdateThrowsExceptionWhenBothTemplateAndElement(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Cannot specify both template and element');
+        $this->expectExceptionMessage('Either template or element must be specified');
 
+        // Don't set template or element at all
         ViewUpdate::create(
             topics: '/test',
-            template: 'Test/view',
-            element: 'test_item',
-            data: ['title' => 'Test', 'content' => 'Test'],
+            viewVars: ['title' => 'Test', 'content' => 'Test'],
         );
     }
 
@@ -214,7 +216,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/test',
             element: 'test_item',
-            data: [],
+            viewVars: [],
         );
 
         $this->assertStringContainsString('test-item', $update->getData());
@@ -234,7 +236,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/books/1',
             element: 'test_item',
-            data: [
+            viewVars: [
                 'title' => $book['title'],
                 'content' => $book['author']['name'],
             ],
@@ -252,7 +254,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/test',
             element: 'test_item',
-            data: ['title' => 'Test', 'content' => 'Content'],
+            viewVars: ['title' => 'Test', 'content' => 'Content'],
             private: true,
         );
 
@@ -269,12 +271,12 @@ class ViewUpdateTest extends TestCase
     public function testViewUpdateInheritsValidation(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('At least one topic must be provided');
+        $this->expectExceptionMessage('At least one topic must be specified');
 
         ViewUpdate::create(
             topics: [],
             element: 'test_item',
-            data: ['title' => 'Test', 'content' => 'Test'],
+            viewVars: ['title' => 'Test', 'content' => 'Test'],
         );
     }
 
@@ -289,7 +291,7 @@ class ViewUpdateTest extends TestCase
         ViewUpdate::create(
             topics: '/test',
             element: 'test_item',
-            data: ['title' => 'Test', 'content' => 'Test'],
+            viewVars: ['title' => 'Test', 'content' => 'Test'],
             retry: -100,
         );
     }
@@ -302,7 +304,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: ['/books/123', '/notifications'],
             element: 'test_item',
-            data: ['title' => 'Complete Test', 'content' => 'All params'],
+            viewVars: ['title' => 'Complete Test', 'content' => 'All params'],
             private: true,
             id: 'book-123',
             type: 'book.updated',
@@ -325,7 +327,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/test',
             element: 'test_item',
-            data: ['title' => 'Test', 'content' => 'Test'],
+            viewVars: ['title' => 'Test', 'content' => 'Test'],
         );
 
         $this->assertInstanceOf(Update::class, $update);
@@ -342,7 +344,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/test',
             element: 'test_item',
-            data: ['title' => 'Custom View', 'content' => 'Test'],
+            viewVars: ['title' => 'Custom View', 'content' => 'Test'],
         );
 
         $this->assertStringContainsString('Custom View', $update->getData());
@@ -361,7 +363,7 @@ class ViewUpdateTest extends TestCase
         ViewUpdate::create(
             topics: '/test',
             element: 'test_item',
-            data: ['title' => 'Test', 'content' => 'Test'],
+            viewVars: ['title' => 'Test', 'content' => 'Test'],
         );
     }
 
@@ -378,7 +380,7 @@ class ViewUpdateTest extends TestCase
         ViewUpdate::create(
             topics: '/test',
             element: 'test_item',
-            data: ['title' => 'Test', 'content' => 'Test'],
+            viewVars: ['title' => 'Test', 'content' => 'Test'],
         );
     }
 
@@ -390,7 +392,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/test',
             template: 'Test/view',
-            data: ['message' => 'Test', 'count' => 1],
+            viewVars: ['message' => 'Test', 'count' => 1],
         );
 
         // Should not contain layout markup, just the template content
@@ -407,7 +409,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/test',
             element: 'test_item',
-            data: [
+            viewVars: [
                 'title' => 'Test & "Quotes"',
                 'content' => "Line 1\nLine 2",
             ],
@@ -426,7 +428,7 @@ class ViewUpdateTest extends TestCase
         $update = ViewUpdate::create(
             topics: '/test',
             element: 'test_item',
-            data: [
+            viewVars: [
                 'title' => 123,
                 'content' => 45.67,
             ],
@@ -435,5 +437,146 @@ class ViewUpdateTest extends TestCase
         $data = $update->getData();
         $this->assertStringContainsString('123', $data);
         $this->assertStringContainsString('45.67', $data);
+    }
+
+    /**
+     * Test view update with viewOptions parameter
+     */
+    public function testViewUpdateWithViewOptions(): void
+    {
+        // Test that viewOptions() method works and update builds successfully
+        $update = (new ViewUpdate('/test'))
+            ->element('test_item')
+            ->viewVars(['title' => 'Test With Options', 'content' => 'Content'])
+            ->viewOptions(['theme' => 'CustomTheme', 'plugin' => 'TestPlugin'])
+            ->build();
+
+        $this->assertInstanceOf(Update::class, $update);
+        $this->assertEquals(['/test'], $update->getTopics());
+        $this->assertStringContainsString('Test With Options', $update->getData());
+        $this->assertStringContainsString('Content', $update->getData());
+    }
+
+    /**
+     * Test view update with empty viewOptions
+     */
+    public function testViewUpdateWithEmptyViewOptions(): void
+    {
+        $update = (new ViewUpdate('/test'))
+            ->element('test_item')
+            ->viewVars(['title' => 'Test', 'content' => 'Content'])
+            ->viewOptions([])
+            ->build();
+
+        $this->assertInstanceOf(Update::class, $update);
+        $this->assertStringContainsString('Test', $update->getData());
+    }
+
+    /**
+     * Test fluent builder pattern
+     */
+    public function testFluentBuilderPattern(): void
+    {
+        $update = (new ViewUpdate('/books/1'))
+            ->element('test_item')
+            ->viewVars(['title' => 'Fluent Test', 'content' => 'Builder Pattern'])
+            ->private()
+            ->id('test-123')
+            ->type('book.updated')
+            ->retry(5000)
+            ->build();
+
+        $this->assertInstanceOf(Update::class, $update);
+        $this->assertEquals(['/books/1'], $update->getTopics());
+        $this->assertTrue($update->isPrivate());
+        $this->assertEquals('test-123', $update->getId());
+        $this->assertEquals('book.updated', $update->getType());
+        $this->assertEquals(5000, $update->getRetry());
+        $this->assertStringContainsString('Fluent Test', $update->getData());
+    }
+
+    /**
+     * Test fluent builder with multiple topics
+     */
+    public function testFluentBuilderWithMultipleTopics(): void
+    {
+        $update = (new ViewUpdate(['/books/1', '/notifications']))
+            ->element('test_item')
+            ->viewVars(['title' => 'Multi', 'content' => 'Topics'])
+            ->build();
+
+        $this->assertEquals(['/books/1', '/notifications'], $update->getTopics());
+    }
+
+    /**
+     * Test fluent builder with set() method
+     */
+    public function testFluentBuilderWithSetMethod(): void
+    {
+        $update = (new ViewUpdate('/test'))
+            ->element('test_item')
+            ->set('title', 'Set Method')
+            ->set('content', 'Individual Values')
+            ->build();
+
+        $this->assertStringContainsString('Set Method', $update->getData());
+        $this->assertStringContainsString('Individual Values', $update->getData());
+    }
+
+    /**
+     * Test fluent builder switching between template and element
+     *
+     * When setting both template and element, the last one set should be used.
+     */
+    public function testFluentBuilderSwitchingTemplateAndElement(): void
+    {
+        // Setting template then element should use element
+        $update1 = (new ViewUpdate('/test'))
+            ->template('Test/view')
+            ->element('test_item')
+            ->viewVars(['title' => 'Test', 'content' => 'Test'])
+            ->build();
+
+        // Verify element was rendered (contains element markup)
+        $this->assertStringContainsString('test-item', $update1->getData());
+        $this->assertStringContainsString('Test', $update1->getData());
+
+        // Setting element then template should use template
+        $update2 = (new ViewUpdate('/test'))
+            ->element('test_item')
+            ->template('Test/view')
+            ->viewVars(['message' => 'Test', 'count' => 1])
+            ->build();
+
+        // Verify template was rendered (contains template markup)
+        $this->assertStringContainsString('test-template', $update2->getData());
+        $this->assertStringContainsString('Test', $update2->getData());
+    }
+
+    /**
+     * Test fluent builder throws exception when no template or element
+     */
+    public function testFluentBuilderThrowsExceptionWhenNoTemplateOrElement(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Either template or element must be specified');
+
+        (new ViewUpdate('/test'))
+            ->viewVars(['title' => 'Test'])
+            ->build();
+    }
+
+    /**
+     * Test fluent builder throws exception when no topics
+     */
+    public function testFluentBuilderThrowsExceptionWhenNoTopics(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('At least one topic must be specified');
+
+        (new ViewUpdate())
+            ->element('test_item')
+            ->viewVars(['title' => 'Test', 'content' => 'Test'])
+            ->build();
     }
 }
