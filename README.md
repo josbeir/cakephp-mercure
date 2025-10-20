@@ -401,7 +401,7 @@ Publisher::publish($update);
 
 The plugin provides a View Helper to generate Mercure URLs in your templates.
 
-First, load the helper in your controller or `AppView`:
+First, load the helper in `AppView`:
 
 ```php
 // In src/View/AppView.php
@@ -581,7 +581,7 @@ $this->Mercure
 You can configure default topics that will be automatically merged with any topics you provide to `url()`. This is useful when you want certain topics (like notifications or global alerts) to be included in every subscription:
 
 ```php
-// In your controller or AppView
+// In your `AppView` using the helper
 public function initialize(): void
 {
     parent::initialize();
@@ -596,24 +596,21 @@ public function initialize(): void
 }
 ```
 
-> [!NOTE]
-> You can also set default topics using the `MercureComponent` in your controller:
->
-> ```php
-> // In your controller
-> public function initialize(): void
-> {
->     parent::initialize();
->     $this->loadComponent('Mercure.Mercure', [
->         'defaultTopics' => [
->             'https://example.com/notifications',
->             'https://example.com/alerts'
->         ]
->     ]);
-> }
-> ```
->
-> This will make the default topics available to the helper in your views as well.
+You can also set default topics using the `MercureComponent` in your controller:
+
+```php
+// In your controller using the component
+public function initialize(): void
+{
+    parent::initialize();
+    $this->loadComponent('Mercure.Mercure', [
+        'defaultTopics' => [
+            'https://example.com/notifications',
+            'https://example.com/alerts'
+        ]
+    ]);
+}
+```
 
 Now every call to `url()` will automatically include these default topics:
 
