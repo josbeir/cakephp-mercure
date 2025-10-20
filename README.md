@@ -125,6 +125,9 @@ For more information, see the [DDEV Mercure add-on](https://addons.ddev.com/addo
 
 The hub will be available at `http://localhost:3000/.well-known/mercure`.
 
+> [!TIP]
+> **Using FrankenPHP?** You're good to go! FrankenPHP has Mercure built in—no separate hub needed. See the [FrankenPHP Mercure documentation](https://frankenphp.dev/docs/mercure/) for details.
+
 ## Configuration
 
 The plugin comes with sensible defaults and multiple configuration options.
