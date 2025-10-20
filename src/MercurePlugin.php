@@ -26,6 +26,11 @@ class MercurePlugin extends BasePlugin
 
         // Load plugin configuration
         Configure::load('Mercure.mercure');
+
+        // Load app specific config file.
+        if (file_exists(ROOT . DS . 'config' . DS . 'app_mercure.php')) {
+            Configure::load('app_mercure');
+        }
     }
 
     /**

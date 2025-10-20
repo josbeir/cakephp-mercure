@@ -127,9 +127,11 @@ The hub will be available at `http://localhost:3000/.well-known/mercure`.
 
 ## Configuration
 
-The plugin includes a default configuration file with all available options. The configuration is automatically loaded from the plugin's `config/mercure.php` file.
+The plugin comes with sensible defaults and multiple configuration options.
 
-Set the required environment variables in your `.env` file:
+**Quick Setup (Environment Variables):**
+
+For development, the fastest way to get started is using environment variables in your `.env` file:
 
 ```env
 MERCURE_URL=http://localhost:3000/.well-known/mercure
@@ -137,38 +139,28 @@ MERCURE_PUBLIC_URL=http://localhost:3000/.well-known/mercure
 MERCURE_JWT_SECRET=!ChangeThisMercureHubJWTSecretKey!
 ```
 
+**Configuration Files:**
+
+The plugin loads configuration in this order:
+
+1. **Plugin defaults** - `vendor/josbeir/cakephp-mercure/config/mercure.php` (loaded automatically)
+2. **Your overrides** - `config/app_mercure.php` (optional, loaded after plugin defaults)
+
+Create `config/app_mercure.php` in your project to customize any settings. Your values will override the plugin defaults.
+
+**Cross-Subdomain Setup:**
+
 > [!NOTE]
-> If your Mercure hub is running on a different subdomain than your CakePHP application, you need to set the cookie domain to the top-level domain:
+> If your Mercure hub runs on a different subdomain than your CakePHP application (e.g., `hub.example.com` vs `app.example.com`), you must configure the cookie domain:
 >
 > ```env
-> # For cross-subdomain authorization
+> # Allow cookie sharing across subdomains
 > MERCURE_COOKIE_DOMAIN=.example.com
 > ```
 >
-> This allows the authorization cookie to be accessible by both your application and the Mercure hub when they are on different subdomains of the same parent domain.
+> This enables the authorization cookie to be accessible by both your application and the Mercure hub. Without this setting, authorization will fail for cross-subdomain requests.
 
-**Configuration structure:**
-
-```php
-'Mercure' => [
-    'url' => 'http://localhost:3000/.well-known/mercure',
-    'public_url' => null, // Optional, defaults to 'url'
-    'jwt' => [
-        'secret' => '!ChangeThisMercureHubJWTSecretKey!',
-        'algorithm' => 'HS256',
-        'publish' => ['*'],
-        'subscribe' => ['*'],
-    ],
-]
-```
-
-The `url` is used by your CakePHP application to publish updates. Set `public_url` when clients need to connect to a different URL (e.g., when using Docker with internal networking).
-
-To customize the configuration, copy the plugin's config file to your application:
-
-```bash
-cp vendor/josbeir/cakephp-mercure/config/mercure.php config/mercure.php
-```
+For a complete list of available environment variables, see the plugin's `config/mercure.php` [file](https://github.com/josbeir/cakephp-mercure/blob/main/config/mercure.php).
 
 ## Basic Usage
 
@@ -397,7 +389,7 @@ Publisher::publish($update);
 > **View Class Configuration:** By default, `ViewUpdate` uses CakePHP's automatic view class selection (your `AppView` if it exists, otherwise the base `View` class). You can override this by setting `view_class` in your configuration:
 >
 > ```php
-> // In config/mercure.php
+> // In config/app_mercure.php
 > return [
 >     'Mercure' => [
 >         'view_class' => \App\View\CustomView::class,
