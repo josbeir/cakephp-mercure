@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Mercure\Test\TestCase\Service;
 
 use Cake\Core\Configure;
+use Cake\Http\Cookie\CookieInterface;
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;
 use Cake\TestSuite\TestCase;
@@ -43,7 +44,7 @@ class AuthorizationServiceTest extends TestCase
             'path' => '/test',
             'secure' => true,
             'httponly' => true,
-            'samesite' => 'strict',
+            'samesite' => CookieInterface::SAMESITE_STRICT,
         ]);
     }
 
@@ -70,7 +71,7 @@ class AuthorizationServiceTest extends TestCase
         $this->assertEquals('/', $config['path']);
         $this->assertFalse($config['secure']);
         $this->assertTrue($config['httponly']);
-        $this->assertEquals('strict', $config['samesite']);
+        $this->assertEquals(CookieInterface::SAMESITE_STRICT, $config['samesite']);
         $this->assertNull($config['domain']);
     }
 
@@ -86,7 +87,7 @@ class AuthorizationServiceTest extends TestCase
         $this->assertEquals('/test', $config['path']);
         $this->assertTrue($config['secure']);
         $this->assertTrue($config['httponly']);
-        $this->assertEquals('strict', $config['samesite']);
+        $this->assertEquals(CookieInterface::SAMESITE_STRICT, $config['samesite']);
     }
 
     /**
@@ -110,7 +111,7 @@ class AuthorizationServiceTest extends TestCase
         $this->assertTrue($cookie->isHttpOnly());
         $sameSite = $cookie->getSameSite();
         $this->assertNotNull($sameSite);
-        $this->assertEquals('Strict', $sameSite->value);
+        $this->assertEquals(CookieInterface::SAMESITE_STRICT, $sameSite->value);
     }
 
     /**
@@ -221,7 +222,7 @@ class AuthorizationServiceTest extends TestCase
      */
     public function testCookieWithDifferentSameSiteValues(): void
     {
-        $sameSiteValues = ['strict', 'lax', 'none'];
+        $sameSiteValues = ['Strict', 'Lax', 'None'];
 
         foreach ($sameSiteValues as $sameSite) {
             $service = new AuthorizationService($this->tokenFactory, [

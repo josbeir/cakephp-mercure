@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Mercure\Test\TestCase;
 
 use Cake\Core\Configure;
+use Cake\Http\Cookie\CookieInterface;
 use Cake\Http\Response;
 use Cake\TestSuite\TestCase;
 use Mercure\Authorization;
@@ -42,7 +43,7 @@ class AuthorizationTest extends TestCase
                 'path' => '/test',
                 'secure' => true,
                 'httponly' => true,
-                'samesite' => 'strict',
+                'samesite' => CookieInterface::SAMESITE_STRICT,
             ],
         ]);
     }
@@ -96,7 +97,7 @@ class AuthorizationTest extends TestCase
         $this->assertEquals('/', $config['path']);
         $this->assertFalse($config['secure']);
         $this->assertTrue($config['httponly']);
-        $this->assertEquals('strict', $config['samesite']);
+        $this->assertEquals(CookieInterface::SAMESITE_STRICT, $config['samesite']);
     }
 
     /**
@@ -254,28 +255,6 @@ class AuthorizationTest extends TestCase
     }
 
     /**
-     * Test getHubUrl returns configured URL
-     */
-    public function testGetHubUrlReturnsConfiguredUrl(): void
-    {
-        $hubUrl = Authorization::getHubUrl();
-        $this->assertEquals('https://mercure.example.com/.well-known/mercure', $hubUrl);
-    }
-
-    /**
-     * Test getHubUrl throws exception when not configured
-     */
-    public function testGetHubUrlThrowsExceptionWhenNotConfigured(): void
-    {
-        Configure::write('Mercure.url', '');
-
-        $this->expectException(MercureException::class);
-        $this->expectExceptionMessage('Mercure hub URL is not configured');
-
-        Authorization::getHubUrl();
-    }
-
-    /**
      * Test cookie with session lifetime (0)
      */
     public function testCookieWithNullExpires(): void
@@ -397,44 +376,6 @@ class AuthorizationTest extends TestCase
         $result = $service->clearCookie($result);
         $cookie = $result->getCookieCollection()->get('testAuth');
         $this->assertTrue($cookie->isExpired());
-    }
-
-    /**
-     * Test getPublicUrl returns public_url when configured
-     */
-    public function testGetPublicUrlReturnsPublicUrlWhenConfigured(): void
-    {
-        Configure::write('Mercure.url', 'http://internal.mercure:3000/.well-known/mercure');
-        Configure::write('Mercure.public_url', 'https://mercure.example.com/.well-known/mercure');
-
-        $publicUrl = Authorization::getPublicUrl();
-        $this->assertEquals('https://mercure.example.com/.well-known/mercure', $publicUrl);
-    }
-
-    /**
-     * Test getPublicUrl falls back to url when public_url not set
-     */
-    public function testGetPublicUrlFallsBackToUrlWhenPublicUrlNotSet(): void
-    {
-        Configure::write('Mercure.url', 'http://localhost:3000/.well-known/mercure');
-        Configure::write('Mercure.public_url', null);
-
-        $publicUrl = Authorization::getPublicUrl();
-        $this->assertEquals('http://localhost:3000/.well-known/mercure', $publicUrl);
-    }
-
-    /**
-     * Test getPublicUrl throws exception when neither url nor public_url set
-     */
-    public function testGetPublicUrlThrowsExceptionWhenNotConfigured(): void
-    {
-        Configure::write('Mercure.url', '');
-        Configure::write('Mercure.public_url', '');
-
-        $this->expectException(MercureException::class);
-        $this->expectExceptionMessage('Mercure hub URL is not configured');
-
-        Authorization::getPublicUrl();
     }
 
     /**

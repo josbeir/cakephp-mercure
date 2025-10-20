@@ -10,7 +10,9 @@ use Mercure\Internal\ConfigurationHelper;
 /**
  * View Update Builder
  *
- * Fluent builder for creating Update instances from rendered CakePHP views or elements.
+ * Fluent builder class for creating Update instances with rendered view data.
+ * Extends AbstractUpdateBuilder to inherit common builder functionality.
+ *
  * This class provides a clean, chainable API for configuring and rendering view updates.
  *
  * Example usage:
@@ -62,7 +64,7 @@ use Mercure\Internal\ConfigurationHelper;
  * );
  * ```
  */
-class ViewUpdate extends AbstractUpdateBuilder
+final class ViewUpdate extends AbstractUpdateBuilder
 {
     protected ?string $template = null;
 
@@ -301,9 +303,7 @@ class ViewUpdate extends AbstractUpdateBuilder
         ?int $retry = null,
         array $viewOptions = [],
     ): Update {
-        // Safe to use static here - allows subclasses to extend ViewUpdate
-        /** @phpstan-ignore-next-line new.static */
-        $builder = new static($topics);
+        $builder = new self($topics);
 
         if ($template !== null) {
             $builder->template($template);

@@ -6,8 +6,11 @@ namespace Mercure\Update;
 /**
  * Simple Update Builder
  *
- * Fluent builder for creating Update instances with raw string data.
- * This class provides a clean, chainable API when you already have the data as a string.
+ * Fluent builder class for creating Update instances with simple string data.
+ * Extends AbstractUpdateBuilder to inherit common builder functionality.
+ *
+ * This class can be used directly for simple string data, pre-encoded JSON,
+ * HTML fragments, or any other string content that doesn't need additional processing.
  *
  * Example usage:
  * ```
@@ -43,8 +46,23 @@ namespace Mercure\Update;
  * );
  * ```
  */
-class SimpleUpdate extends AbstractUpdateBuilder
+final class SimpleUpdate extends AbstractUpdateBuilder
 {
+    protected mixed $data = '';
+
+    /**
+     * Set the data for the update
+     *
+     * @param mixed $data Data for the update
+     * @return $this
+     */
+    public function data(mixed $data)
+    {
+        $this->data = $data;
+
+        return $this;
+    }
+
     /**
      * Build and return the Update instance
      *
@@ -58,7 +76,7 @@ class SimpleUpdate extends AbstractUpdateBuilder
     }
 
     /**
-     * Static create method for creating updates with a single call
+     * Static factory method for creating SimpleUpdate instances with a single call
      *
      * @param array<string>|string $topics Topic(s) to publish to
      * @param string $data Data string
@@ -76,9 +94,7 @@ class SimpleUpdate extends AbstractUpdateBuilder
         ?string $type = null,
         ?int $retry = null,
     ): Update {
-        // Safe to use static here - allows subclasses to extend SimpleUpdate
-        /** @phpstan-ignore-next-line new.static */
-        return (new static($topics))
+        return (new self($topics))
             ->data($data)
             ->private($private)
             ->id($id)

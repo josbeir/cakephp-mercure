@@ -8,7 +8,9 @@ use JsonException;
 /**
  * JSON Update Builder
  *
- * Fluent builder for creating Update instances from JSON-encoded data.
+ * Fluent builder class for creating Update instances with JSON-encoded data.
+ * Extends AbstractUpdateBuilder to inherit common builder functionality.
+ *
  * This class provides a clean, chainable API for configuring and encoding JSON updates.
  *
  * Example usage:
@@ -46,9 +48,24 @@ use JsonException;
  * );
  * ```
  */
-class JsonUpdate extends AbstractUpdateBuilder
+final class JsonUpdate extends AbstractUpdateBuilder
 {
+    protected mixed $data = null;
+
     protected int $jsonOptions = JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR;
+
+    /**
+     * Set the data to be JSON-encoded
+     *
+     * @param mixed $data Data to encode as JSON (array, object, etc.)
+     * @return $this
+     */
+    public function data(mixed $data)
+    {
+        $this->data = $data;
+
+        return $this;
+    }
 
     /**
      * Set JSON encoding options
@@ -124,9 +141,7 @@ class JsonUpdate extends AbstractUpdateBuilder
         ?int $retry = null,
         int $jsonOptions = JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
     ): Update {
-        // Safe to use static here - allows subclasses to extend JsonUpdate
-        /** @phpstan-ignore-next-line new.static */
-        return (new static($topics))
+        return (new self($topics))
             ->data($data)
             ->jsonOptions($jsonOptions)
             ->private($private)

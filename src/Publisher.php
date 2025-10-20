@@ -140,29 +140,4 @@ class Publisher
     {
         return self::create()->publish($update);
     }
-
-    /**
-     * Get the Mercure hub URL from configuration
-     *
-     * This is the server-side URL used for publishing updates.
-     *
-     * @throws \Mercure\Exception\MercureException
-     */
-    public static function getHubUrl(): string
-    {
-        return ConfigurationHelper::getHubUrl();
-    }
-
-    /**
-     * Get the Mercure public URL from configuration
-     *
-     * This is the client-facing URL for EventSource connections.
-     * Falls back to hub_url if not configured.
-     *
-     * @throws \Mercure\Exception\MercureException
-     */
-    public static function getPublicUrl(): string
-    {
-        return ConfigurationHelper::getPublicUrl();
-    }
 }

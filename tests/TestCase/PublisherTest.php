@@ -124,18 +124,6 @@ class PublisherTest extends TestCase
     }
 
     /**
-     * Test getHubUrl returns configured URL
-     */
-    public function testGetHubUrlReturnsConfiguredUrl(): void
-    {
-        Configure::write('Mercure.url', 'http://example.com/.well-known/mercure');
-
-        $hubUrl = Publisher::getHubUrl();
-
-        $this->assertSame('http://example.com/.well-known/mercure', $hubUrl);
-    }
-
-    /**
      * Test static publish with multiple updates
      */
     public function testStaticPublishWithMultipleUpdates(): void
@@ -148,27 +136,6 @@ class PublisherTest extends TestCase
         Publisher::publish(new Update(topics: '/test3', data: 'data3'));
 
         $this->assertCount(3, $mock->getUpdates());
-    }
-
-    /**
-     * Test using Publisher without explicit setInstance
-     */
-    public function testUsingPublisherWithoutExplicitSetInstance(): void
-    {
-        Configure::write('Mercure', [
-            'url' => 'http://localhost:3000/.well-known/mercure',
-            'jwt' => [
-                'secret' => 'test-secret-key',
-            ],
-        ]);
-
-        // First call creates the instance
-        $hubUrl = Publisher::getHubUrl();
-        $this->assertSame('http://localhost:3000/.well-known/mercure', $hubUrl);
-
-        // Subsequent calls use the same instance
-        $hubUrl2 = Publisher::getHubUrl();
-        $this->assertSame($hubUrl, $hubUrl2);
     }
 
     /**
@@ -492,43 +459,5 @@ class PublisherTest extends TestCase
         $this->expectExceptionMessage('JWT secret or token must be configured');
 
         Publisher::create();
-    }
-
-    /**
-     * Test getPublicUrl returns public_url when configured
-     */
-    public function testGetPublicUrlReturnsPublicUrlWhenConfigured(): void
-    {
-        Configure::write('Mercure.url', 'http://internal.mercure:3000/.well-known/mercure');
-        Configure::write('Mercure.public_url', 'https://mercure.example.com/.well-known/mercure');
-
-        $publicUrl = Publisher::getPublicUrl();
-        $this->assertEquals('https://mercure.example.com/.well-known/mercure', $publicUrl);
-    }
-
-    /**
-     * Test getPublicUrl falls back to url when public_url not set
-     */
-    public function testGetPublicUrlFallsBackToUrlWhenPublicUrlNotSet(): void
-    {
-        Configure::write('Mercure.url', 'http://localhost:3000/.well-known/mercure');
-        Configure::write('Mercure.public_url', null);
-
-        $publicUrl = Publisher::getPublicUrl();
-        $this->assertEquals('http://localhost:3000/.well-known/mercure', $publicUrl);
-    }
-
-    /**
-     * Test getPublicUrl throws exception when neither url nor public_url set
-     */
-    public function testGetPublicUrlThrowsExceptionWhenNotConfigured(): void
-    {
-        Configure::write('Mercure.url', '');
-        Configure::write('Mercure.public_url', '');
-
-        $this->expectException(MercureException::class);
-        $this->expectExceptionMessage('Mercure hub URL is not configured');
-
-        Publisher::getPublicUrl();
     }
 }

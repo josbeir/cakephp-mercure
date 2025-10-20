@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use Cake\Http\Cookie\CookieInterface;
+
 /**
  * Mercure Plugin Configuration
  *
@@ -34,7 +36,7 @@ return [
          *
          * Default: null (uses url)
          */
-        'public_url' => env('MERCURE_PUBLIC_URL'),
+        'public_url' => env('MERCURE_PUBLIC_URL', null),
 
         /**
          * JWT Configuration
@@ -64,19 +66,9 @@ return [
             'secret' => env('MERCURE_JWT_SECRET', ''),
             'algorithm' => 'HS256',
             'publish' => ['*'],
-            'subscribe' => ['*'],
+            'subscribe' => [],
             'additional_claims' => [],
         ],
-
-        /**
-         * HTTP Client Options
-         *
-         * Options are passed directly to CakePHP's HTTP Client for communicating with the Mercure hub.
-         *
-         * @see https://book.cakephp.org/5/en/core-libraries/httpclient.html#request-options
-         * @see https://api.cakephp.org/5.0/class-Cake.Http.Client.html
-         */
-        'http_client' => [],
 
         /**
          * Cookie Configuration for Subscriber Authorization
@@ -104,78 +96,33 @@ return [
          */
         'cookie' => [
             'name' => env('MERCURE_COOKIE_NAME', 'mercureAuthorization'),
-            
-            // Lifetime in seconds (0 for session cookie)
-            // Omit to use session.cookie_lifetime ini setting
-            // 'lifetime' => 3600,  // 1 hour
-            
-            // Or use explicit expiry datetime
-            // 'expires' => '+1 hour',
-            
-            'path' => '/',
             'domain' => env('MERCURE_COOKIE_DOMAIN'),
             'secure' => env('MERCURE_COOKIE_SECURE', true),
-            'httponly' => true,
-            'samesite' => env('MERCURE_COOKIE_SAMESITE', 'strict'),
+            'httponly' => env('MERCURE_COOKIE_HTTPONLY', true),
+            'samesite' => env('MERCURE_COOKIE_SAMESITE', CookieInterface::SAMESITE_STRICT),
         ],
 
         /**
-         * Mercure Discovery
+         * HTTP Client Options
          *
-         * The plugin supports Mercure hub discovery via Link headers (rel="mercure").
-         * This allows clients to automatically discover the hub URL.
+         * Options are passed directly to CakePHP's HTTP Client for communicating with the Mercure hub.
          *
-         * Three ways to add discovery headers:
-         *
-         * 1. View Helper (in templates):
-         *    $this->Mercure->discover();
-         *
-         * 2. Controller (manual):
-         *    $response = Authorization::addDiscoveryHeader($response);
-         *
-         * 3. Middleware (automatic for all responses):
-         *    Add to Application.php middleware stack:
-         *    $middlewareQueue->add(new \Mercure\Http\Middleware\MercureDiscoveryMiddleware());
-         *
-         /**
-          * The discovery header will contain the public_url (or url if not set).
-          */
-
-         /**
-          * View Class for ViewUpdate
-          *
-          * Custom View class to use when rendering templates/elements in ViewUpdate.
-          * Must extend Cake\View\View.
-          *
-          * Default: Auto-detected (App\View\AppView if exists, otherwise Cake\View\View)
-          *
-          * You can override this to use a custom View class:
-          * 'view_class' => \App\View\CustomView::class,
-          */
+         * @see https://book.cakephp.org/5/en/core-libraries/httpclient.html#request-options
+         * @see https://api.cakephp.org/5.0/class-Cake.Http.Client.html
+         */
+        'http_client' => [],
 
         /**
-         * ViewUpdate View Options
+         * View Class for ViewUpdate
          *
-         * ViewUpdate::create() accepts a 'viewOptions' parameter to customize ViewBuilder behavior.
+         * Custom View class to use when rendering templates/elements in ViewUpdate.
+         * Must extend Cake\View\View.
          *
-         * Supported options:
-         * - 'className' => Custom View class for this specific update
-         * - 'plugin' => Plugin name containing the template
-         * - 'theme' => Theme name for template lookup
-         * - 'name' => View name (overrides template/element name)
+         * Default: Auto-detected (App\View\AppView if exists, otherwise Cake\View\View)
          *
-         * Example:
-         * ```php
-         * $update = ViewUpdate::create(
-         *     topics: '/books/1',
-         *     element: 'Books/item',
-         *     data: ['book' => $book],
-         *     viewOptions: [
-         *         'plugin' => 'MyPlugin',
-         *         'theme' => 'custom',
-         *     ]
-         * );
-         * ```
+         * You can override this to use a custom View class:
+         * 'view_class' => \App\View\CustomView::class,
          */
+        'view_class' => null,
      ],
  ];

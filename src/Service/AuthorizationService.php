@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Mercure\Service;
 
 use Cake\Http\Cookie\Cookie;
+use Cake\Http\Cookie\CookieInterface;
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;
 use DateTimeImmutable;
@@ -43,7 +44,7 @@ class AuthorizationService implements AuthorizationInterface
             'domain' => null,
             'secure' => false,
             'httponly' => true,
-            'samesite' => 'strict',
+            'samesite' => CookieInterface::SAMESITE_STRICT,
             'expires' => null,
             'lifetime' => null,
         ];

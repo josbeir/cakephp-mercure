@@ -25,9 +25,6 @@ use Mercure\Service\AuthorizationService;
  *
  * // Clear authorization
  * $response = Authorization::clearCookie($response);
- *
- * // Get hub URL
- * $hubUrl = Authorization::getHubUrl();
  * ```
  */
 class Authorization
@@ -148,30 +145,5 @@ class Authorization
     public static function addDiscoveryHeader(Response $response, ?ServerRequest $request = null): Response
     {
         return self::create()->addDiscoveryHeader($response, $request);
-    }
-
-    /**
-     * Get the Mercure hub URL from configuration
-     *
-     * This is the server-side URL used for publishing updates.
-     *
-     * @throws \Mercure\Exception\MercureException
-     */
-    public static function getHubUrl(): string
-    {
-        return ConfigurationHelper::getHubUrl();
-    }
-
-    /**
-     * Get the Mercure public URL from configuration
-     *
-     * This is the client-facing URL for EventSource connections.
-     * Falls back to hub_url if not configured.
-     *
-     * @throws \Mercure\Exception\MercureException
-     */
-    public static function getPublicUrl(): string
-    {
-        return ConfigurationHelper::getPublicUrl();
     }
 }

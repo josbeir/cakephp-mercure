@@ -9,37 +9,31 @@ use InvalidArgumentException;
  * Abstract Update Builder
  *
  * Base class for fluent builder classes that create Update instances.
- * Provides common functionality for managing topics and update metadata.
+ * Provides common functionality for managing topics, update metadata, and building updates.
  *
- * @abstract
+ * Subclasses should:
+ * - Implement the build() method to create Update instances
+ * - Optionally override validate() to add specialized validation
+ * - Define their own static create() methods with appropriate signatures
  */
 abstract class AbstractUpdateBuilder
 {
     /**
-     * @var array<string>
-     */
-    protected array $topics = [];
-
-    protected bool $private = false;
-
-    protected ?string $id = null;
-
-    protected ?string $type = null;
-
-    protected ?int $retry = null;
-
-    protected mixed $data = '';
-
-    /**
      * Constructor
      *
-     * @param array<string>|string|null $topics Optional topic(s) to publish to
+     * @param array<string>|string $topics Optional topic(s) to publish to
+     * @param bool $private Whether this is a private update
+     * @param string|null $id Event ID
+     * @param string|null $type Event type
+     * @param int|null $retry Retry count
      */
-    public function __construct(array|string|null $topics = null)
-    {
-        if ($topics !== null) {
-            $this->topics($topics);
-        }
+    public function __construct(
+        protected array|string $topics = [],
+        protected bool $private = false,
+        protected ?string $id = null,
+        protected ?string $type = null,
+        protected ?int $retry = null,
+    ) {
     }
 
     /**
@@ -114,20 +108,9 @@ abstract class AbstractUpdateBuilder
     }
 
     /**
-     * Set the data for the update
-     *
-     * @param mixed $data Data for the update
-     * @return $this
-     */
-    public function data(mixed $data)
-    {
-        $this->data = $data;
-
-        return $this;
-    }
-
-    /**
      * Build and return the Update instance
+     *
+     * Subclasses must implement this method to define how the update is built.
      *
      * @throws \InvalidArgumentException
      */

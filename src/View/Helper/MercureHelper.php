@@ -5,6 +5,7 @@ namespace Mercure\View\Helper;
 
 use Cake\View\Helper;
 use Mercure\Authorization;
+use Mercure\Internal\ConfigurationHelper;
 
 /**
  * Mercure Helper
@@ -118,7 +119,7 @@ class MercureHelper extends Helper
         }
 
         // Get hub URL and build subscription URL with topics
-        $hubUrl = Authorization::getPublicUrl();
+        $hubUrl = ConfigurationHelper::getPublicUrl();
 
         if ($topics === []) {
             return $hubUrl;
@@ -143,7 +144,7 @@ class MercureHelper extends Helper
         // Merge with default topics
         $topics = $this->mergeTopics($topics);
 
-        $hubUrl = Authorization::getPublicUrl();
+        $hubUrl = ConfigurationHelper::getPublicUrl();
 
         if ($topics === [] && $options === []) {
             return $hubUrl;
