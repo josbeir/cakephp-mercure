@@ -19,6 +19,7 @@ Push real-time updates to clients using the Mercure protocol.
   - [Running a Mercure Hub](#running-a-mercure-hub)
 - [Configuration](#configuration)
 - [Basic Usage](#basic-usage)
+  - [Choosing Your Authorization Strategy](#choosing-your-authorization-strategy)
   - [Publishing Updates](#publishing-updates)
     - [Publishing JSON Data](#publishing-json-data)
     - [Publishing Rendered Views](#publishing-rendered-views)
@@ -26,12 +27,12 @@ Push real-time updates to clients using the Mercure protocol.
 - [Authorization](#authorization)
   - [Publishing Private Updates](#publishing-private-updates)
   - [Setting Authorization Cookies](#setting-authorization-cookies)
-    - [Using the Component (Recommended)](#using-the-component-recommended)
-    - [Using the View Helper](#using-the-view-helper)
-    - [Using the Facade (Alternative)](#using-the-facade-alternative)
+    - [Using the Component](#using-the-component)
+    - [Authorization Builder Pattern](#authorization-builder-pattern)
+    - [Setting Default Topics](#setting-default-topics)
+    - [Using the Facade classes](#using-the-facade-classes)
 - [Mercure Discovery](#mercure-discovery)
-  - [Using the View Helper](#using-the-view-helper)
-  - [Using the Facade](#using-the-facade)
+  - [Using the Component](#using-the-component-1)
   - [Using Middleware](#using-middleware)
 - [Advanced Configuration](#advanced-configuration)
   - [JWT Token Strategies](#jwt-token-strategies)
@@ -169,11 +170,11 @@ For a complete list of available environment variables, see the plugin's `config
 
 The plugin provides multiple integration points depending on your use case:
 
-- **Templates**: Use the `MercureHelper` for the easiest, self-contained integration (handles authorization and URLs)
-- **Controllers**: Use the `MercureComponent` for centralized authorization and separation of concerns (recommended for testability)
-- **Services/Commands**: Use the `Publisher` facade for publishing updates
-- **Manual Control**: Use the `Authorization` facade when you need direct response manipulation
+- **Controllers**: Use the `MercureComponent` to centrally manage both authorization and subscriptions as topics
+- **Templates**: Use the `MercureHelper` to generate Mercure topic URLs for EventSource subscriptions in your views and templates.
+- **Services & Manual Control**: Use the `Publisher` facade to publish updates and the `Authorization` facade for direct response manipulation when you need lower-level control (e.g., outside controllers/views, such as in background jobs or custom middleware).
 
+> [!TIP]
 > **Note:** Facades (`Publisher`, `Authorization`) can be used in any context where a CakePHP component or helper does not fit, such as in queue jobs, commands, models, or other non-HTTP or background processing code. This makes them ideal for use outside of controllers and views.
 
 ### Choosing Your Authorization Strategy
@@ -182,14 +183,9 @@ Pick the approach that best fits your workflow:
 
 | Scenario | Recommended Approach | Method to Use |
 |----------|---------------------|---------------|
-| **Authorize in controller, display URL in template** | `MercureComponent` + `url()` | `$this->Mercure->authorize()` in controller, `$this->Mercure->url($topics)` in template |
-| **Authorize directly in template** | `MercureHelper::url()` with `subscribe` | `$this->Mercure->url($topics, $subscribe)` |
-| **Public topics (no authorization)** | `url()` | `$this->Mercure->url($topics)` |
+| **Authorize in controller, display URL in template** | `MercureComponent` + `MercureHelper` | `$this->Mercure->authorize()` in controller, `$this->Mercure->url($topics)` in template |
+| **Public topics (no authorization)** | `MercureHelper` | `$this->Mercure->url($topics)` |
 | **Manual response control** | `Authorization` facade | `Authorization::setCookie($response, $subscribe)` |
-
-> [!TIP]
-> * **Easiest:** Use `MercureHelper::url($topics, $subscribe)` directly in templates for quick setup.
-> * **Best Practice:** For larger applications, handle authorization in controllers using `MercureComponent`, then use `url($topics)` in templates. This keeps authorization logic centralized and testable.
 
 ### Publishing Updates
 
@@ -405,11 +401,6 @@ Publisher::publish($update);
 
 The plugin provides a View Helper to generate Mercure URLs in your templates.
 
-> [!IMPORTANT]
-> **Authorization Consideration:** When using the `MercureHelper`, understand the difference:
-> - `$this->Mercure->url($topics)` - Gets URL **without authorization** (when `$subscribe` is omitted)
-> - `$this->Mercure->url($topics, $subscribe)` - Gets URL **and sets authorization cookie** (when `$subscribe` is provided)
-
 First, load the helper in your controller or `AppView`:
 
 ```php
@@ -476,8 +467,6 @@ eventSource.onmessage = (event) => {
 };
 ```
 
-The special topic `*` matches all updates (use with caution in production).
-
 ## Authorization
 
 ### Publishing Private Updates
@@ -498,9 +487,9 @@ Private updates are only delivered to subscribers with valid JWT tokens containi
 
 ### Setting Authorization Cookies
 
-#### Using the Component (Recommended for Separation of Concerns)
+#### Using the Component
 
-For centralized, testable authorization logic, use the `MercureComponent` in controllers. Topics added via the component are automatically available in your views:
+For centralized authorization logic, use the `MercureComponent` in controllers. Topics added via the component are automatically available in your views:
 
 ```php
 class BooksController extends AppController
@@ -548,7 +537,7 @@ class BooksController extends AppController
 }
 ```
 
-The component provides separation of concerns (authorization in controller, URLs in template) and is fully testable. You can also enable automatic discovery headers:
+The component provides separation of concerns (authorization in controller, URLs in template). You can also enable automatic discovery headers:
 
 ```php
 // In AppController
@@ -587,40 +576,6 @@ $this->Mercure
     ->discover();
 ```
 
-#### Using the View Helper (Easiest)
-
-For the simplest, self-contained approach, use the `MercureHelper::url()` method with the `subscribe` parameter. This **automatically handles both authorization and URL generation** in one call:
-
-```php
-// In your template
-<script>
-// url() with subscribe parameter SETS AUTHORIZATION COOKIE
-const url = '<?= $this->Mercure->url(
-    topics: ['https://example.com/books/<?= $book->id ?>'],
-    subscribe: ['https://example.com/books/<?= $book->id ?>']
-) ?>';
-
-const eventSource = new EventSource(url, {
-    withCredentials: true
-});
-
-eventSource.onmessage = (event) => {
-    console.log('Private update:', event.data);
-};
-</script>
-```
-
-> [!NOTE]
-> **Separation of Concerns:** The `url()` method **only sets authorization when the `$subscribe` parameter is provided**. If you're already handling authorization in your controller (via `MercureComponent`), simply omit the `$subscribe` parameter:
->
-> ```php
-> // Authorization already set in controller
-> $this->Mercure->authorize(['/books/123']);
->
-> // In template: just get the URL (no duplicate authorization)
-> const url = '<?= $this->Mercure->url(['/books/123']) ?>';
-> ```
-
 #### Setting Default Topics
 
 You can configure default topics that will be automatically merged with any topics you provide to `url()`. This is useful when you want certain topics (like notifications or global alerts) to be included in every subscription:
@@ -641,6 +596,25 @@ public function initialize(): void
 }
 ```
 
+> [!NOTE]
+> You can also set default topics using the `MercureComponent` in your controller:
+>
+> ```php
+> // In your controller
+> public function initialize(): void
+> {
+>     parent::initialize();
+>     $this->loadComponent('Mercure.Mercure', [
+>         'defaultTopics' => [
+>             'https://example.com/notifications',
+>             'https://example.com/alerts'
+>         ]
+>     ]);
+> }
+> ```
+>
+> This will make the default topics available to the helper in your views as well.
+
 Now every call to `url()` will automatically include these default topics:
 
 ```php
@@ -660,7 +634,7 @@ const url = '<?= $this->Mercure->url(['/books/123']) ?>';
 // Result includes: /notifications, /alerts, /user/{id}/messages, /books/456, /comments/789, AND /books/123
 ```
 
-#### Using the Facade (Alternative)
+#### Using the Facade classes
 
 For more control or when not using controllers, you can use the `Authorization` facade directly:
 
@@ -688,13 +662,13 @@ The cookie must be set before establishing the EventSource connection. The Mercu
 
 The Mercure protocol supports automatic hub discovery via HTTP Link headers. This allows clients to discover the hub URL without hardcoding it, making your application more flexible and following the Mercure specification.
 
-### Using the View Helper
+### Using the Component
 
-Add the discovery header in your templates or layouts:
+Add the discovery header from your controller using the `MercureComponent`:
 
 ```php
-// In your layout or template
-<?php $this->Mercure->discover(); ?>
+// In your controller action
+$this->Mercure->discover();
 ```
 
 This adds a `Link` header to the response:
@@ -718,26 +692,9 @@ fetch('/api/resource')
     });
 ```
 
-### Using the Facade
-
-You can also add the discovery header manually from controllers:
-
-```php
-use Mercure\Authorization;
-
-public function index()
-{
-    $response = Authorization::addDiscoveryHeader($this->response);
-
-    // Your controller logic here
-
-    return $response;
-}
-```
-
 ### Using Middleware
 
-For automatic discovery headers on all responses, add the middleware to your application:
+This is an alternative approach to add the discovery header automatically to all responses by using middleware:
 
 ```php
 // In src/Application.php
@@ -1095,11 +1052,6 @@ Static facade for direct authorization management (alternative to component).
 | `url(array\|string\|null $topics, array $subscribe, array $additionalClaims)` | `string` | Get hub URL **and optionally authorize** (only sets cookie when `$subscribe` is provided). Merges with default topics if configured. |
 | `addTopic(string $topic)` | `$this` | Add a single topic to default topics (fluent interface) |
 | `addTopics(array $topics)` | `$this` | Add multiple topics to default topics (fluent interface) |
-| `authorize(array $subscribe, array $additionalClaims)` | `void` | Set authorization cookie explicitly |
-| `clearAuthorization()` | `void` | Clear authorization cookie |
-| `discover()` | `void` | Add Mercure discovery Link header |
-| `getCookieName()` | `string` | Get the cookie name |
-| `getConfig(string $key, mixed $default)` | `mixed` | Get helper configuration (e.g., `getConfig('defaultTopics', [])`) |
 
 **Configuration Options:**
 

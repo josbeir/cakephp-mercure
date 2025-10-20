@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace Mercure\View\Helper;
 
 use Cake\View\Helper;
-use Mercure\Authorization;
 use Mercure\Internal\ConfigurationHelper;
 use Mercure\TopicManagementTrait;
 
@@ -13,24 +12,33 @@ use Mercure\TopicManagementTrait;
  *
  * Provides view-layer integration for Mercure, including:
  * - Generating hub discovery URLs
- * - Managing authorization cookies for subscribers
  * - Building EventSource connection URLs
- * - Adding Mercure discovery headers
  * - Default topics configuration
+ *
+ * For authorization and discovery headers, use the Authorization facade directly in your controller:
+ * ```
+ * // Set authorization cookie
+ * Authorization::setCookie($this->response, ['/books/123']);
+ *
+ * // Add discovery header
+ * Authorization::addDiscoveryHeader($this->response, $this->request);
+ * ```
  *
  * Example usage in templates:
  * ```
- * // Set default topics (in View or controller)
+ * // Load helper with default topics (in View or controller)
  * $this->loadHelper('Mercure', [
  *     'defaultTopics' => ['/notifications', '/alerts']
  * ]);
  *
-
- * // Recommended: Get URL and authorize in one call
- * $hubUrl = $this->Mercure->url(
- *     topics: ['/books/123'],                    // Topics to subscribe to in EventSource
- *     subscribe: ['/books/123', '/notifications'] // Topics allowed in JWT (can be broader)
- * );
+ * // Simple usage: Get the hub URL with default topics
+ * $hubUrl = $this->Mercure->url();
+ *
+ * // Subscribe to specific topics
+ * $hubUrl = $this->Mercure->url(['/books/123']);
+ *
+ * // Subscribe to multiple topics
+ * $hubUrl = $this->Mercure->url(['/books/123', '/notifications']);
  *
  * // Default topics will be merged with provided topics
  * $hubUrl = $this->Mercure->url(['/books/123']); // Result: ['/books/123', '/notifications', '/alerts']
@@ -38,29 +46,6 @@ use Mercure\TopicManagementTrait;
  * // Add topics dynamically
  * $this->Mercure->addTopic('/user/123/messages');
  * $this->Mercure->addTopics(['/books/456', '/comments/789']);
- *
- * // Simple usage: Just get the hub URL with default topics
- * $hubUrl = $this->Mercure->url();
- *
- * // Subscribe to multiple topics
- * $hubUrl = $this->Mercure->url(['/books/123', '/notifications']);
- *
- * // Authorize for private updates with wildcard
- * $hubUrl = $this->Mercure->url('/books/123', ['/books/*']);
- *
- * // With additional JWT claims (e.g., user info)
- * $hubUrl = $this->Mercure->url(
- *     topics: ['/users/{userId}/notifications'],
- *     subscribe: ['/users/{userId}/notifications'],
- *     additionalClaims: ['sub' => $userId, 'aud' => 'my-app']
- * );
- *
- * // Add Mercure discovery header
- * $this->Mercure->discover();
- *
- * // Manual authorization (if needed separately):
- * $this->Mercure->authorize(['/books/123', '/notifications']);
- * $this->Mercure->clearAuthorization();
  * ```
  */
 class MercureHelper extends Helper
@@ -112,21 +97,15 @@ class MercureHelper extends Helper
     }
 
     /**
-     * Get the Mercure hub URL and optionally set authorization cookie
-     *
-     * This method combines authorization and URL generation in one call.
-     * When subscribe topics are provided, it automatically sets the authorization cookie
-     * and returns the hub URL with topic parameters.
+     * Get the Mercure hub URL with optional topic query parameters
      *
      * Default topics (if configured) will be automatically merged with provided topics.
      *
      * @param array<string>|string|null $topics Topics to subscribe to (can be array of topics or single topic)
-     * @param array<string> $subscribe Topics the subscriber can access (for authorization)
-     * @param array<string, mixed> $additionalClaims Additional JWT claims for authorization
      * @return string Hub URL with optional topic query parameters
      * @throws \Mercure\Exception\MercureException
      */
-    public function url(array|string|null $topics = null, array $subscribe = [], array $additionalClaims = []): string
+    public function url(array|string|null $topics = null): string
     {
         // Normalize topics to array
         if (is_string($topics)) {
@@ -138,11 +117,6 @@ class MercureHelper extends Helper
         // Merge with default topics
         $topics = $this->mergeTopics($topics);
 
-        // If subscribe topics provided, set authorization cookie
-        if ($subscribe !== []) {
-            $this->authorize($subscribe, $additionalClaims);
-        }
-
         // Get hub URL and build subscription URL with topics
         $hubUrl = ConfigurationHelper::getPublicUrl();
 
@@ -151,37 +125,6 @@ class MercureHelper extends Helper
         }
 
         return $this->buildSubscriptionUrl($hubUrl, $topics, []);
-    }
-
-    /**
-     * Set authorization cookie for subscriber access to private topics
-     *
-     * This modifies the response object to include the authorization cookie,
-     * allowing the client's EventSource connection to authenticate.
-     *
-     * @param array<string> $subscribe Topics the subscriber can access
-     * @param array<string, mixed> $additionalClaims Additional JWT claims
-     * @throws \Mercure\Exception\MercureException
-     */
-    public function authorize(array $subscribe = [], array $additionalClaims = []): void
-    {
-        $response = $this->getView()->getResponse();
-        $response = Authorization::setCookie($response, $subscribe, $additionalClaims);
-        $this->getView()->setResponse($response);
-    }
-
-    /**
-     * Clear the authorization cookie
-     *
-     * Removes the subscriber authorization cookie from the response.
-     *
-     * @throws \Mercure\Exception\MercureException
-     */
-    public function clearAuthorization(): void
-    {
-        $response = $this->getView()->getResponse();
-        $response = Authorization::clearCookie($response);
-        $this->getView()->setResponse($response);
     }
 
     /**
@@ -219,40 +162,5 @@ class MercureHelper extends Helper
         $separator = str_contains($hubUrl, '?') ? '&' : '?';
 
         return $hubUrl . $separator . implode('&', $params);
-    }
-
-    /**
-     * Get the cookie name used for authorization
-     *
-     * @return string Cookie name
-     */
-    public function getCookieName(): string
-    {
-        return Authorization::getCookieName();
-    }
-
-    /**
-     * Add the Mercure discovery header to the response
-     *
-     * Adds a Link header with rel="mercure" to advertise the Mercure hub URL.
-     * This allows clients to automatically discover the hub endpoint for
-     * establishing EventSource connections.
-     *
-     * Skips CORS preflight requests to prevent conflicts with CORS middleware.
-     *
-     * Example usage:
-     * ```
-     * // In a template or layout
-     * $this->Mercure->discover();
-     * ```
-     *
-     * @throws \Mercure\Exception\MercureException
-     */
-    public function discover(): void
-    {
-        $request = $this->getView()->getRequest();
-        $response = $this->getView()->getResponse();
-        $response = Authorization::addDiscoveryHeader($response, $request);
-        $this->getView()->setResponse($response);
     }
 }
