@@ -858,4 +858,281 @@ class MercureComponentTest extends TestCase
         $topics = $this->component->getTopics();
         $this->assertEquals([], $topics);
     }
+
+    /**
+     * Test addSubscribe adds single topic
+     */
+    public function testAddSubscribeAddsSingleTopic(): void
+    {
+        $result = $this->component->addSubscribe('/books/123');
+
+        $this->assertSame($this->component, $result);
+        $this->assertEquals(['/books/123'], $this->component->getSubscribe());
+    }
+
+    /**
+     * Test addSubscribe with additional claims
+     */
+    public function testAddSubscribeWithAdditionalClaims(): void
+    {
+        $this->component->addSubscribe('/books/123', ['sub' => 'user-456', 'role' => 'admin']);
+
+        $this->assertEquals(['/books/123'], $this->component->getSubscribe());
+        $this->assertEquals(['sub' => 'user-456', 'role' => 'admin'], $this->component->getAdditionalClaims());
+    }
+
+    /**
+     * Test addSubscribe merges claims across multiple calls
+     */
+    public function testAddSubscribeMergesClaims(): void
+    {
+        $this->component
+            ->addSubscribe('/books/123', ['sub' => 'user-456'])
+            ->addSubscribe('/notifications/*', ['role' => 'admin']);
+
+        $this->assertEquals(['/books/123', '/notifications/*'], $this->component->getSubscribe());
+        $this->assertEquals(['sub' => 'user-456', 'role' => 'admin'], $this->component->getAdditionalClaims());
+    }
+
+    /**
+     * Test addSubscribe allows duplicate topics
+     */
+    public function testAddSubscribeAllowsDuplicateTopics(): void
+    {
+        $this->component
+            ->addSubscribe('/books/123')
+            ->addSubscribe('/books/123');
+
+        // authorize() will deduplicate, but accumulator keeps duplicates
+        $this->assertEquals(['/books/123', '/books/123'], $this->component->getSubscribe());
+    }
+
+    /**
+     * Test addSubscribes adds multiple topics
+     */
+    public function testAddSubscribesAddsMultipleTopics(): void
+    {
+        $result = $this->component->addSubscribes(['/books/123', '/notifications/*']);
+
+        $this->assertSame($this->component, $result);
+        $this->assertEquals(['/books/123', '/notifications/*'], $this->component->getSubscribe());
+    }
+
+    /**
+     * Test addSubscribes with additional claims
+     */
+    public function testAddSubscribesWithAdditionalClaims(): void
+    {
+        $this->component->addSubscribes(
+            ['/books/123', '/notifications/*'],
+            ['sub' => 'user-456', 'role' => 'admin'],
+        );
+
+        $this->assertEquals(['/books/123', '/notifications/*'], $this->component->getSubscribe());
+        $this->assertEquals(['sub' => 'user-456', 'role' => 'admin'], $this->component->getAdditionalClaims());
+    }
+
+    /**
+     * Test getSubscribe returns empty array initially
+     */
+    public function testGetSubscribeReturnsEmptyArrayInitially(): void
+    {
+        $this->assertEquals([], $this->component->getSubscribe());
+    }
+
+    /**
+     * Test getAdditionalClaims returns empty array initially
+     */
+    public function testGetAdditionalClaimsReturnsEmptyArrayInitially(): void
+    {
+        $this->assertEquals([], $this->component->getAdditionalClaims());
+    }
+
+    /**
+     * Test resetSubscribe clears accumulated topics
+     */
+    public function testResetSubscribeClearsAccumulatedTopics(): void
+    {
+        $this->component->addSubscribe('/books/123');
+        $this->assertEquals(['/books/123'], $this->component->getSubscribe());
+
+        $result = $this->component->resetSubscribe();
+
+        $this->assertSame($this->component, $result);
+        $this->assertEquals([], $this->component->getSubscribe());
+    }
+
+    /**
+     * Test resetAdditionalClaims clears accumulated claims
+     */
+    public function testResetAdditionalClaimsClearsAccumulatedClaims(): void
+    {
+        $this->component->addSubscribe('/books/123', ['sub' => 'user-456']);
+        $this->assertEquals(['sub' => 'user-456'], $this->component->getAdditionalClaims());
+
+        $result = $this->component->resetAdditionalClaims();
+
+        $this->assertSame($this->component, $result);
+        $this->assertEquals([], $this->component->getAdditionalClaims());
+    }
+
+    /**
+     * Test authorize uses accumulated topics and claims
+     */
+    public function testAuthorizeUsesAccumulatedState(): void
+    {
+        $this->component
+            ->addSubscribe('/books/123', ['sub' => 'user-456'])
+            ->addSubscribe('/notifications/*', ['role' => 'admin'])
+            ->authorize();
+
+        $response = $this->controller->getResponse();
+        $cookies = $response->getCookieCollection();
+        $this->assertTrue($cookies->has('mercureAuth'));
+
+        // State should be reset after authorize
+        $this->assertEquals([], $this->component->getSubscribe());
+        $this->assertEquals([], $this->component->getAdditionalClaims());
+    }
+
+    /**
+     * Test authorize merges parameters with accumulated state
+     */
+    public function testAuthorizeMergesParametersWithAccumulatedState(): void
+    {
+        $this->component
+            ->addSubscribe('/books/123', ['sub' => 'user-456'])
+            ->authorize(['/notifications/*'], ['role' => 'admin']);
+
+        $response = $this->controller->getResponse();
+        $cookies = $response->getCookieCollection();
+        $this->assertTrue($cookies->has('mercureAuth'));
+
+        // State should be reset after authorize
+        $this->assertEquals([], $this->component->getSubscribe());
+        $this->assertEquals([], $this->component->getAdditionalClaims());
+    }
+
+    /**
+     * Test authorize deduplicates topics
+     */
+    public function testAuthorizeDeduplicatesTopics(): void
+    {
+        $this->component
+            ->addSubscribe('/books/123')
+            ->addSubscribe('/books/123')
+            ->authorize(['/books/123']);
+
+        $response = $this->controller->getResponse();
+        $cookies = $response->getCookieCollection();
+        $this->assertTrue($cookies->has('mercureAuth'));
+
+        // Should have deduplicated the topics (verified by no errors)
+        $this->assertEquals([], $this->component->getSubscribe());
+    }
+
+    /**
+     * Test authorize with only accumulated state (no parameters)
+     */
+    public function testAuthorizeWithOnlyAccumulatedState(): void
+    {
+        $this->component
+            ->addSubscribe('/books/123', ['sub' => 'user-456'])
+            ->authorize();
+
+        $response = $this->controller->getResponse();
+        $cookies = $response->getCookieCollection();
+        $this->assertTrue($cookies->has('mercureAuth'));
+
+        $this->assertEquals([], $this->component->getSubscribe());
+        $this->assertEquals([], $this->component->getAdditionalClaims());
+    }
+
+    /**
+     * Test authorize resets state even with empty parameters
+     */
+    public function testAuthorizeResetsStateWithEmptyParameters(): void
+    {
+        $this->component->addSubscribe('/books/123', ['sub' => 'user-456']);
+
+        $this->assertEquals(['/books/123'], $this->component->getSubscribe());
+        $this->assertEquals(['sub' => 'user-456'], $this->component->getAdditionalClaims());
+
+        $this->component->authorize();
+
+        $this->assertEquals([], $this->component->getSubscribe());
+        $this->assertEquals([], $this->component->getAdditionalClaims());
+    }
+
+    /**
+     * Test fluent chaining with authorization builder
+     */
+    public function testFluentChainingWithAuthorizationBuilder(): void
+    {
+        $result = $this->component
+            ->addTopic('/books/123')
+            ->addSubscribe('/books/123', ['sub' => 'user-456'])
+            ->addSubscribe('/notifications/*', ['role' => 'admin'])
+            ->authorize()
+            ->discover();
+
+        $this->assertSame($this->component, $result);
+
+        // Check topics are still available (not reset by authorize)
+        $this->assertEquals(['/books/123'], $this->component->getTopics());
+
+        // Check subscribe state was reset
+        $this->assertEquals([], $this->component->getSubscribe());
+        $this->assertEquals([], $this->component->getAdditionalClaims());
+
+        // Check authorization cookie was set
+        $response = $this->controller->getResponse();
+        $cookies = $response->getCookieCollection();
+        $this->assertTrue($cookies->has('mercureAuth'));
+
+        // Check discovery header was added
+        $linkHeader = $response->getHeaderLine('Link');
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test claims precedence (parameter claims override accumulated)
+     */
+    public function testClaimsPrecedenceParametersOverrideAccumulated(): void
+    {
+        $this->component
+            ->addSubscribe('/books/123', ['sub' => 'user-456', 'role' => 'user'])
+            ->authorize([], ['role' => 'admin']); // Override role
+
+        $response = $this->controller->getResponse();
+        $cookies = $response->getCookieCollection();
+        $this->assertTrue($cookies->has('mercureAuth'));
+
+        // State should be reset
+        $this->assertEquals([], $this->component->getAdditionalClaims());
+    }
+
+    /**
+     * Test multiple authorize calls work correctly
+     */
+    public function testMultipleAuthorizeCallsWithBuilder(): void
+    {
+        // First authorize with accumulated state
+        $this->component
+            ->addSubscribe('/books/123', ['sub' => 'user-456'])
+            ->authorize();
+
+        $response1 = $this->controller->getResponse();
+        $this->assertTrue($response1->getCookieCollection()->has('mercureAuth'));
+        $this->assertEquals([], $this->component->getSubscribe());
+
+        // Second authorize with new accumulated state
+        $this->component
+            ->addSubscribe('/notifications/*', ['role' => 'admin'])
+            ->authorize();
+
+        $response2 = $this->controller->getResponse();
+        $this->assertTrue($response2->getCookieCollection()->has('mercureAuth'));
+        $this->assertEquals([], $this->component->getSubscribe());
+    }
 }

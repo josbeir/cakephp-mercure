@@ -519,15 +519,26 @@ class BooksController extends AppController
     public function view($id)
     {
         $book = $this->Books->get($id);
+        $userId = $this->request->getAttribute('identity')->id;
 
-        // Authorize subscriber for private topics
-        $this->Mercure->authorize(["https://example.com/books/{$id}"]);
+        // Fluent authorization with builder pattern
+        $this->Mercure
+            ->addSubscribe("https://example.com/books/{$id}", ['sub' => $userId])
+            ->addSubscribe("https://example.com/notifications/*", ['role' => 'user'])
+            ->authorize()
+            ->discover();
 
-        // Or with additional JWT claims
+        // Or direct authorization (backward compatible)
         $this->Mercure->authorize(
             subscribe: ["https://example.com/books/{$id}"],
-            additionalClaims: ['user_id' => $this->request->getAttribute('identity')->id]
+            additionalClaims: ['sub' => $userId]
         );
+
+        // Or build up gradually
+        $this->Mercure
+            ->addSubscribe("https://example.com/books/{$id}")
+            ->addSubscribe("https://example.com/user/{$userId}/updates", ['sub' => $userId])
+            ->authorize(); // Uses accumulated topics and claims
 
         $this->set('book', $book);
     }
@@ -549,6 +560,36 @@ The component provides separation of concerns (authorization in controller, URLs
 $this->loadComponent('Mercure.Mercure', [
     'autoDiscover' => true,  // Automatically add discovery headers
 ]);
+```
+
+#### Authorization Builder Pattern
+
+The component supports a fluent builder pattern for authorization, making it easy to build up topics and claims:
+
+```php
+// Build authorization gradually
+$this->Mercure
+    ->addSubscribe('/books/123', ['sub' => $userId])
+    ->addSubscribe('/notifications/*', ['role' => 'admin'])
+    ->authorize();
+
+// Add multiple topics at once
+$this->Mercure->addSubscribes(
+    ['/books/123', '/notifications/{id}'],
+    ['sub' => $userId, 'role' => 'admin']
+);
+
+// Mix with direct parameters
+$this->Mercure
+    ->addSubscribe('/books/123')
+    ->authorize(['/notifications/{id}'], ['sub' => $userId]);
+
+// Chain with topic management and discovery
+$this->Mercure
+    ->addTopic('/books/123') // For EventSource subscription
+    ->addSubscribe('/books/123', ['sub' => $userId]) // For authorization
+    ->authorize()
+    ->discover();
 ```
 
 #### Using the View Helper (Easiest)
@@ -956,13 +997,13 @@ Topics added in the controller are automatically available in `MercureHelper` in
 public function view($id)
 {
     $book = $this->Books->get($id);
-    
+
     // Add topics that will be available in the view
     $this->Mercure
         ->addTopic("/books/{$id}")
         ->addTopic("/user/{$userId}/updates")
         ->authorize(["/books/{$id}"]);
-    
+
     $this->set('book', $book);
 }
 
