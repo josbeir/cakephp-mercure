@@ -8,6 +8,6 @@
  */
 ?>
 <div class="test-item">
-    <h2><?= htmlspecialchars($title ?? '', ENT_QUOTES, 'UTF-8') ?></h2>
-    <p><?= htmlspecialchars($content ?? '', ENT_QUOTES, 'UTF-8') ?></p>
+    <h2><?= h($title ?? '') ?></h2>
+    <p><?= h($content ?? '') ?></p>
 </div>

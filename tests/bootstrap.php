@@ -25,7 +25,7 @@ define('CONFIG', TESTS . 'config' . DS);
 
 require_once PLUGIN_ROOT . '/vendor/autoload.php';
 require_once CORE_PATH . 'config/bootstrap.php';
-require_once CORE_PATH . 'src' . DS . 'I18n' . DS . 'functions_global.php';
+require_once CORE_PATH . 'src' . DS . 'Core' . DS . 'functions_global.php';
 
 Configure::write('App', [
     'encoding' => 'UTF-8',

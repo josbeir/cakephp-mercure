@@ -8,6 +8,6 @@
  */
 ?>
 <div class="test-template">
-    <div class="message"><?= htmlspecialchars($message ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+    <div class="message"><?= h($message ?? '') ?></div>
     <div class="count">Count: <?= $count ?></div>
 </div>
