@@ -14,16 +14,26 @@ use Mercure\Authorization;
  * - Managing authorization cookies for subscribers
  * - Building EventSource connection URLs
  * - Adding Mercure discovery headers
+ * - Default topics configuration
  *
  * Example usage in templates:
  * ```
+ * // Set default topics (in View or controller)
+ * $this->loadHelper('Mercure', [
+ *     'defaultTopics' => ['/notifications', '/alerts']
+ * ]);
+ *
+
  * // Recommended: Get URL and authorize in one call
  * $hubUrl = $this->Mercure->url(
  *     topics: ['/books/123'],                    // Topics to subscribe to in EventSource
  *     subscribe: ['/books/123', '/notifications'] // Topics allowed in JWT (can be broader)
  * );
  *
- * // Simple usage: Just get the hub URL
+ * // Default topics will be merged with provided topics
+ * $hubUrl = $this->Mercure->url(['/books/123']); // Result: ['/books/123', '/notifications', '/alerts']
+ *
+ * // Simple usage: Just get the hub URL with default topics
  * $hubUrl = $this->Mercure->url();
  *
  * // Subscribe to multiple topics
@@ -51,11 +61,38 @@ use Mercure\Authorization;
 class MercureHelper extends Helper
 {
     /**
+     * Default configuration
+     *
+     * @var array<string, mixed>
+     */
+    protected array $_defaultConfig = [
+        'defaultTopics' => [],
+    ];
+
+    /**
+     * Merge provided topics with default topics (removing duplicates)
+     *
+     * @param array<string> $topics Provided topics
+     * @return array<string>
+     */
+    protected function mergeTopics(array $topics): array
+    {
+        $defaultTopics = $this->getConfig('defaultTopics', []);
+        if ($defaultTopics === []) {
+            return $topics;
+        }
+
+        return array_values(array_unique(array_merge($defaultTopics, $topics)));
+    }
+
+    /**
      * Get the Mercure hub URL and optionally set authorization cookie
      *
      * This method combines authorization and URL generation in one call.
      * When subscribe topics are provided, it automatically sets the authorization cookie
      * and returns the hub URL with topic parameters.
+     *
+     * Default topics (if configured) will be automatically merged with provided topics.
      *
      * @param array<string>|string|null $topics Topics to subscribe to (can be array of topics or single topic)
      * @param array<string> $subscribe Topics the subscriber can access (for authorization)
@@ -71,6 +108,9 @@ class MercureHelper extends Helper
         } elseif ($topics === null) {
             $topics = [];
         }
+
+        // Merge with default topics
+        $topics = $this->mergeTopics($topics);
 
         // If subscribe topics provided, set authorization cookie
         if ($subscribe !== []) {
@@ -91,6 +131,7 @@ class MercureHelper extends Helper
      * Get the Mercure hub URL
      *
      * Optionally builds a URL with topic query parameters for EventSource connections.
+     * Default topics (if configured) will be automatically merged with provided topics.
      *
      * @param array<string> $topics Optional topics to subscribe to
      * @param array<string, mixed> $options Additional query parameters
@@ -99,6 +140,9 @@ class MercureHelper extends Helper
      */
     public function getHubUrl(array $topics = [], array $options = []): string
     {
+        // Merge with default topics
+        $topics = $this->mergeTopics($topics);
+
         $hubUrl = Authorization::getPublicUrl();
 
         if ($topics === [] && $options === []) {

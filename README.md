@@ -179,6 +179,8 @@ The plugin provides multiple integration points depending on your use case:
 - **Services/Commands**: Use the `Publisher` facade for publishing updates
 - **Manual Control**: Use the `Authorization` facade when you need direct response manipulation
 
+> **Note:** Facades (`Publisher`, `Authorization`) can be used in any context where a CakePHP component or helper does not fit, such as in queue jobs, commands, models, or other non-HTTP or background processing code. This makes them ideal for use outside of controllers and views.
+
 ### Choosing Your Authorization Strategy
 
 Pick the approach that best fits your workflow:
@@ -590,6 +592,40 @@ eventSource.onmessage = (event) => {
 >
 > Use `getHubUrl()` when you want to be explicit that authorization is handled elsewhere.
 
+#### Setting Default Topics
+
+You can configure default topics that will be automatically merged with any topics you provide to `url()` or `getHubUrl()`. This is useful when you want certain topics (like notifications or global alerts) to be included in every subscription:
+
+```php
+// In your controller or AppView
+public function initialize(): void
+{
+    parent::initialize();
+
+    // Load helper with default topics
+    $this->loadHelper('Mercure', [
+        'defaultTopics' => [
+            'https://example.com/notifications',
+            'https://example.com/alerts'
+        ]
+    ]);
+}
+```
+
+Now every call to `url()` or `getHubUrl()` will automatically include these default topics:
+
+```php
+// In your template
+<script>
+// This will subscribe to: /notifications, /alerts, AND /books/123
+const url = '<?= $this->Mercure->url(['/books/123']) ?>';
+const eventSource = new EventSource(url, { withCredentials: true });
+
+// Access configured defaults if needed
+const defaults = <?= json_encode($this->Mercure->getConfig('defaultTopics', [])) ?>;
+</script>
+```
+
 #### Using the Facade (Alternative)
 
 For more control or when not using controllers, you can use the `Authorization` facade directly:
@@ -962,12 +998,19 @@ Static facade for direct authorization management (alternative to component).
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `url(array\|string\|null $topics, array $subscribe, array $additionalClaims)` | `string` | Get hub URL **and optionally authorize** (only sets cookie when `$subscribe` is provided) |
-| `getHubUrl(array $topics, array $options)` | `string` | Get hub URL **without authorization** (explicit, no cookie ever set) |
+| `url(array\|string\|null $topics, array $subscribe, array $additionalClaims)` | `string` | Get hub URL **and optionally authorize** (only sets cookie when `$subscribe` is provided). Merges with default topics if configured. |
+| `getHubUrl(array $topics, array $options)` | `string` | Get hub URL **without authorization** (explicit, no cookie ever set). Merges with default topics if configured. |
 | `authorize(array $subscribe, array $additionalClaims)` | `void` | Set authorization cookie explicitly |
 | `clearAuthorization()` | `void` | Clear authorization cookie |
 | `discover()` | `void` | Add Mercure discovery Link header |
 | `getCookieName()` | `string` | Get the cookie name |
+| `getConfig(string $key, mixed $default)` | `mixed` | Get helper configuration (e.g., `getConfig('defaultTopics', [])`) |
+
+**Configuration Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `defaultTopics` | `array` | `[]` | Topics to automatically merge with every subscription |
 
 ### Update
 

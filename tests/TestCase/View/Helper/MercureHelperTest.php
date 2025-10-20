@@ -592,4 +592,94 @@ class MercureHelperTest extends TestCase
         $linkHeader = $response->getHeaderLine('Link');
         $this->assertStringContainsString('rel="mercure"', $linkHeader);
     }
+
+    /**
+     * Test default topics are merged with provided topics
+     */
+    public function testDefaultTopicsAreMergedWithProvidedTopics(): void
+    {
+        // Create helper with default topics
+        $helper = new MercureHelper($this->view, [
+            'defaultTopics' => ['/notifications', '/alerts'],
+        ]);
+
+        // Get URL with additional topics
+        $url = $helper->getHubUrl(['/books/123']);
+
+        // Should contain all topics
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+        $this->assertStringContainsString('topic=%2Falerts', $url);
+        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+    }
+
+    /**
+     * Test default topics work with url() method
+     */
+    public function testDefaultTopicsWorkWithUrlMethod(): void
+    {
+        $helper = new MercureHelper($this->view, [
+            'defaultTopics' => ['/notifications'],
+        ]);
+
+        $url = $helper->url(['/books/123']);
+
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+    }
+
+    /**
+     * Test default topics remove duplicates
+     */
+    public function testDefaultTopicsRemoveDuplicates(): void
+    {
+        $helper = new MercureHelper($this->view, [
+            'defaultTopics' => ['/notifications', '/alerts'],
+        ]);
+
+        // Provide a topic that overlaps with defaults
+        $url = $helper->getHubUrl(['/notifications', '/books/123']);
+
+        // Count occurrences of /notifications - should appear only once
+        $count = substr_count($url, 'topic=%2Fnotifications');
+        $this->assertEquals(1, $count, 'Duplicate topics should be removed');
+
+        // Other topics should still be present
+        $this->assertStringContainsString('topic=%2Falerts', $url);
+        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+    }
+
+    /**
+     * Test getConfig returns configured default topics
+     */
+    public function testGetConfigReturnsConfiguredDefaultTopics(): void
+    {
+        $helper = new MercureHelper($this->view, [
+            'defaultTopics' => ['/notifications', '/alerts'],
+        ]);
+
+        $defaults = $helper->getConfig('defaultTopics');
+
+        $this->assertEquals(['/notifications', '/alerts'], $defaults);
+    }
+
+    /**
+     * Test getConfig returns empty array when default topics not configured
+     */
+    public function testGetConfigReturnsEmptyArrayWhenDefaultTopicsNotConfigured(): void
+    {
+        $defaults = $this->helper->getConfig('defaultTopics', []);
+
+        $this->assertEquals([], $defaults);
+    }
+
+    /**
+     * Test helper works without default topics (backward compatibility)
+     */
+    public function testHelperWorksWithoutDefaultTopics(): void
+    {
+        $url = $this->helper->getHubUrl(['/books/123']);
+
+        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+        $this->assertEquals(1, substr_count($url, 'topic='));
+    }
 }
