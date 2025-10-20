@@ -980,11 +980,19 @@ public function initialize(): void
 | `addTopic(string $topic)` | `$this` | Add a topic for the view to subscribe to |
 | `addTopics(array $topics)` | `$this` | Add multiple topics for the view |
 | `getTopics()` | `array` | Get all topics added in the component |
-| `authorize(array $subscribe, array $additionalClaims)` | `$this` | Set authorization cookie |
+| `resetTopics()` | `$this` | Reset all accumulated topics |
+| `addSubscribe(string $topic, array $additionalClaims = [])` | `$this` | Add a topic to authorize with optional JWT claims |
+| `addSubscribes(array $topics, array $additionalClaims = [])` | `$this` | Add multiple topics to authorize with optional JWT claims |
+| `getSubscribe()` | `array` | Get accumulated subscribe topics |
+| `getAdditionalClaims()` | `array` | Get accumulated JWT claims |
+| `resetSubscribe()` | `$this` | Reset accumulated subscribe topics |
+| `resetAdditionalClaims()` | `$this` | Reset accumulated JWT claims |
+| `authorize(array $subscribe = [], array $additionalClaims = [])` | `$this` | Set authorization cookie (merges with accumulated state, then resets) |
 | `clearAuthorization()` | `$this` | Clear authorization cookie |
 | `discover()` | `$this` | Add Mercure discovery Link header |
 | `publish(Update $update)` | `bool` | Publish an update to the Mercure hub |
 | `publishJson(string\|array $topics, mixed $data, ...)` | `bool` | Publish JSON data (auto-encodes) |
+| `publishSimple(string\|array $topics, string $data, ...)` | `bool` | Publish simple string data (no encoding) |
 | `publishView(string\|array $topics, ?string $template, ?string $element, array $data, ...)` | `bool` | Publish rendered view/element |
 | `getCookieName()` | `string` | Get the cookie name |
 
@@ -1012,14 +1020,38 @@ const url = '<?= $this->Mercure->url() ?>';
 // Subscribes to: /books/123 and /user/456/updates (from component)
 ```
 
-**Authorization methods** support fluent chaining:
+**Authorization Builder Pattern:**
+
+Build up authorization topics and claims fluently, then call `authorize()`:
 
 ```php
+// Build up gradually with claims
 $this->Mercure
-    ->addTopics(['/books/123', '/notifications'])
-    ->authorize(['/feeds/123'])
+    ->addSubscribe('/books/123', ['sub' => $userId])
+    ->addSubscribe('/notifications/*', ['role' => 'admin'])
+    ->authorize()
+    ->discover();
+
+// Add multiple at once
+$this->Mercure->addSubscribes(
+    ['/books/123', '/notifications/*'],
+    ['sub' => $userId, 'role' => 'admin']
+);
+
+// Mix builder and direct parameters
+$this->Mercure
+    ->addSubscribe('/books/123')
+    ->authorize(['/notifications/*'], ['sub' => $userId]);
+
+// Chain with topic management
+$this->Mercure
+    ->addTopic('/books/123')                          // For EventSource
+    ->addSubscribe('/books/123', ['sub' => $userId])  // For authorization
+    ->authorize()
     ->discover();
 ```
+
+Claims accumulate across multiple `addSubscribe()` calls. The `authorize()` method automatically resets accumulated state after setting the cookie.
 
 **Publishing convenience methods** make it easy to publish updates directly from controllers:
 
