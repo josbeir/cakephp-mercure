@@ -9,6 +9,7 @@ use Mercure\Authorization;
 use Mercure\Publisher;
 use Mercure\Service\AuthorizationInterface;
 use Mercure\Service\PublisherInterface;
+use Mercure\TopicManagementTrait;
 use Mercure\Update\JsonUpdate;
 use Mercure\Update\SimpleUpdate;
 use Mercure\Update\Update;
@@ -33,11 +34,18 @@ use Mercure\Update\ViewUpdate;
  * {
  *     $book = $this->Books->get($id);
  *
+ *     // Add topics for this view (available in MercureHelper)
+ *     $this->Mercure->addTopic("/books/{$id}");
+ *
  *     // Authorize subscriber
  *     $this->Mercure->authorize(["/books/{$id}"]);
  *
- *     // Or with discovery
- *     $this->Mercure->authorize(["/books/{$id}"])->discover();
+ *     // Or chain methods
+ *     $this->Mercure
+ *         ->addTopic("/books/{$id}")
+ *         ->addTopic("/user/{$userId}/updates")
+ *         ->authorize(["/books/{$id}"])
+ *         ->discover();
  *
  *     $this->set('book', $book);
  * }
@@ -71,12 +79,18 @@ use Mercure\Update\ViewUpdate;
  * Configuration:
  * ```
  * $this->loadComponent('Mercure.Mercure', [
- *     'autoDiscover' => true,  // Automatically add discovery headers
+ *     'autoDiscover' => true,     // Automatically add discovery headers
+ *     'defaultTopics' => [        // Topics automatically available in all views
+ *         '/notifications',
+ *         '/global/alerts'
+ *     ]
  * ]);
  * ```
  */
 class MercureComponent extends Component
 {
+    use TopicManagementTrait;
+
     protected AuthorizationInterface $authorizationService;
 
     protected PublisherInterface $publisherService;
@@ -88,6 +102,7 @@ class MercureComponent extends Component
      */
     protected array $_defaultConfig = [
         'autoDiscover' => false,
+        'defaultTopics' => [],
     ];
 
     /**
@@ -97,6 +112,12 @@ class MercureComponent extends Component
     {
         $this->authorizationService = Authorization::create();
         $this->publisherService = Publisher::create();
+
+        // Initialize with default topics from config
+        $defaultTopics = $this->getConfig('defaultTopics', []);
+        if (is_array($defaultTopics)) {
+            $this->topics = $defaultTopics;
+        }
     }
 
     /**
@@ -110,6 +131,20 @@ class MercureComponent extends Component
     {
         if ($this->getConfig('autoDiscover')) {
             $this->discover();
+        }
+    }
+
+    /**
+     * beforeRender callback
+     *
+     * Passes topics to view for MercureHelper to use.
+     *
+     * @param \Cake\Event\EventInterface<\Cake\Controller\Controller> $event The beforeRender event
+     */
+    public function beforeRender(EventInterface $event): void
+    {
+        if ($this->topics !== []) {
+            $this->getController()->set('_mercureTopics', $this->topics);
         }
     }
 

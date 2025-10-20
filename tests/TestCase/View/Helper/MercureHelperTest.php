@@ -864,4 +864,108 @@ class MercureHelperTest extends TestCase
         $this->assertStringContainsString('topic=%2Fmessages', $url);
         $this->assertEquals(3, substr_count($url, 'topic='));
     }
+
+    /**
+     * Test helper reads _mercureTopics from view variable
+     */
+    public function testHelperReadsTopicsFromViewVariable(): void
+    {
+        $this->view->set('_mercureTopics', ['/books/123', '/notifications']);
+
+        $helper = new MercureHelper($this->view);
+
+        $url = $helper->url();
+        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+        $this->assertEquals(2, substr_count($url, 'topic='));
+    }
+
+    /**
+     * Test helper merges view variable topics with defaultTopics
+     */
+    public function testHelperMergesViewVariableWithDefaultTopics(): void
+    {
+        $this->view->set('_mercureTopics', ['/books/123']);
+
+        $helper = new MercureHelper($this->view, [
+            'defaultTopics' => ['/notifications'],
+        ]);
+
+        $url = $helper->url();
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+        $this->assertEquals(2, substr_count($url, 'topic='));
+    }
+
+    /**
+     * Test helper works without _mercureTopics view variable
+     */
+    public function testHelperWorksWithoutViewVariable(): void
+    {
+        // Don't set _mercureTopics
+        $helper = new MercureHelper($this->view);
+
+        $url = $helper->url(['/books/123']);
+        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+        $this->assertEquals(1, substr_count($url, 'topic='));
+    }
+
+    /**
+     * Test helper ignores non-array _mercureTopics
+     */
+    public function testHelperIgnoresNonArrayViewVariable(): void
+    {
+        $this->view->set('_mercureTopics', 'not-an-array');
+
+        $helper = new MercureHelper($this->view);
+
+        $url = $helper->url(['/books/123']);
+        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+        $this->assertEquals(1, substr_count($url, 'topic='));
+    }
+
+    /**
+     * Test helper removes duplicates from view variable topics
+     */
+    public function testHelperRemovesDuplicatesFromViewVariable(): void
+    {
+        $this->view->set('_mercureTopics', ['/books/123', '/notifications']);
+
+        $helper = new MercureHelper($this->view, [
+            'defaultTopics' => ['/notifications'],
+        ]);
+
+        $url = $helper->url();
+        // Should only have 2 topics, not 3 (notifications not duplicated)
+        $this->assertEquals(2, substr_count($url, 'topic='));
+        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+    }
+
+    /**
+     * Test helper merges all topic sources
+     */
+    public function testHelperMergesAllTopicSources(): void
+    {
+        // Set view variable (from component)
+        $this->view->set('_mercureTopics', ['/books/123']);
+
+        // Configure default topics
+        $helper = new MercureHelper($this->view, [
+            'defaultTopics' => ['/notifications'],
+        ]);
+
+        // Add dynamic topics
+        $helper->addTopic('/alerts');
+
+        // Provide topics in url() call
+        $url = $helper->url(['/messages']);
+
+        // Should have all 4 unique topics
+        $this->assertEquals(4, substr_count($url, 'topic='));
+        $this->assertStringContainsString('topic=%2Fnotifications', $url); // from default
+        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url); // from view var
+        $this->assertStringContainsString('topic=%2Falerts', $url); // from addTopic
+        $this->assertStringContainsString('topic=%2Fmessages', $url); // from url() call
+    }
 }

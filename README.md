@@ -193,8 +193,8 @@ Pick the approach that best fits your workflow:
 | **Manual response control** | `Authorization` facade | `Authorization::setCookie($response, $subscribe)` |
 
 > [!TIP]
-> **Easiest:** Use `MercureHelper::url($topics, $subscribe)` directly in templates for quick setup.
-> **Best Practice:** For larger applications, handle authorization in controllers using `MercureComponent`, then use `url($topics)` in templates. This keeps authorization logic centralized and testable.
+> * **Easiest:** Use `MercureHelper::url($topics, $subscribe)` directly in templates for quick setup.
+> * **Best Practice:** For larger applications, handle authorization in controllers using `MercureComponent`, then use `url($topics)` in templates. This keeps authorization logic centralized and testable.
 
 ### Publishing Updates
 
@@ -505,7 +505,7 @@ Private updates are only delivered to subscribers with valid JWT tokens containi
 
 #### Using the Component (Recommended for Separation of Concerns)
 
-For centralized, testable authorization logic, use the `MercureComponent` in controllers:
+For centralized, testable authorization logic, use the `MercureComponent` in controllers. Topics added via the component are automatically available in your views:
 
 ```php
 class BooksController extends AppController
@@ -924,6 +924,10 @@ public function initialize(): void
     parent::initialize();
     $this->loadComponent('Mercure.Mercure', [
         'autoDiscover' => true,  // Optional: auto-add discovery headers
+        'defaultTopics' => [     // Optional: topics available in all views
+            '/notifications',
+            '/global/alerts'
+        ]
     ]);
 }
 ```
@@ -932,6 +936,9 @@ public function initialize(): void
 
 | Method | Returns | Description |
 |--------|---------|-------------|
+| `addTopic(string $topic)` | `$this` | Add a topic for the view to subscribe to |
+| `addTopics(array $topics)` | `$this` | Add multiple topics for the view |
+| `getTopics()` | `array` | Get all topics added in the component |
 | `authorize(array $subscribe, array $additionalClaims)` | `$this` | Set authorization cookie |
 | `clearAuthorization()` | `$this` | Clear authorization cookie |
 | `discover()` | `$this` | Add Mercure discovery Link header |
@@ -940,10 +947,37 @@ public function initialize(): void
 | `publishView(string\|array $topics, ?string $template, ?string $element, array $data, ...)` | `bool` | Publish rendered view/element |
 | `getCookieName()` | `string` | Get the cookie name |
 
+**Topic Management:**
+
+Topics added in the controller are automatically available in `MercureHelper` in your views:
+
+```php
+// In controller
+public function view($id)
+{
+    $book = $this->Books->get($id);
+    
+    // Add topics that will be available in the view
+    $this->Mercure
+        ->addTopic("/books/{$id}")
+        ->addTopic("/user/{$userId}/updates")
+        ->authorize(["/books/{$id}"]);
+    
+    $this->set('book', $book);
+}
+
+// In template - topics are automatically included
+const url = '<?= $this->Mercure->url() ?>';
+// Subscribes to: /books/123 and /user/456/updates (from component)
+```
+
 **Authorization methods** support fluent chaining:
 
 ```php
-$this->Mercure->authorize(['/feeds/123'])->discover();
+$this->Mercure
+    ->addTopics(['/books/123', '/notifications'])
+    ->authorize(['/feeds/123'])
+    ->discover();
 ```
 
 **Publishing convenience methods** make it easy to publish updates directly from controllers:

@@ -702,4 +702,160 @@ class MercureComponentTest extends TestCase
 
         $this->assertTrue($result);
     }
+
+    /**
+     * Test addTopic adds a single topic
+     */
+    public function testAddTopicAddsSingleTopic(): void
+    {
+        $this->component->addTopic('/books/123');
+
+        $topics = $this->component->getTopics();
+        $this->assertEquals(['/books/123'], $topics);
+    }
+
+    /**
+     * Test addTopic prevents duplicates
+     */
+    public function testAddTopicPreventsDuplicates(): void
+    {
+        $this->component->addTopic('/books/123');
+        $this->component->addTopic('/books/123');
+
+        $topics = $this->component->getTopics();
+        $this->assertEquals(['/books/123'], $topics);
+    }
+
+    /**
+     * Test addTopic returns component for chaining
+     */
+    public function testAddTopicReturnsComponentForChaining(): void
+    {
+        $result = $this->component->addTopic('/books/123');
+
+        $this->assertSame($this->component, $result);
+    }
+
+    /**
+     * Test addTopics adds multiple topics
+     */
+    public function testAddTopicsAddsMultipleTopics(): void
+    {
+        $this->component->addTopics(['/books/123', '/notifications', '/alerts']);
+
+        $topics = $this->component->getTopics();
+        $this->assertEquals(['/books/123', '/notifications', '/alerts'], $topics);
+    }
+
+    /**
+     * Test addTopics prevents duplicates
+     */
+    public function testAddTopicsPreventsDuplicates(): void
+    {
+        $this->component->addTopics(['/books/123', '/notifications']);
+        $this->component->addTopics(['/notifications', '/alerts']);
+
+        $topics = $this->component->getTopics();
+        $this->assertEquals(['/books/123', '/notifications', '/alerts'], $topics);
+    }
+
+    /**
+     * Test addTopics returns component for chaining
+     */
+    public function testAddTopicsReturnsComponentForChaining(): void
+    {
+        $result = $this->component->addTopics(['/books/123', '/notifications']);
+
+        $this->assertSame($this->component, $result);
+    }
+
+    /**
+     * Test method chaining with addTopic
+     */
+    public function testMethodChainingWithAddTopic(): void
+    {
+        $result = $this->component
+            ->addTopic('/books/123')
+            ->addTopic('/notifications')
+            ->authorize(['/books/123'])
+            ->discover();
+
+        $this->assertSame($this->component, $result);
+        $topics = $this->component->getTopics();
+        $this->assertEquals(['/books/123', '/notifications'], $topics);
+    }
+
+    /**
+     * Test defaultTopics configuration
+     */
+    public function testDefaultTopicsConfiguration(): void
+    {
+        $request = new ServerRequest();
+        $controller = new Controller($request);
+        $controller->setResponse(new Response());
+
+        $registry = new ComponentRegistry($controller);
+        $component = new MercureComponent($registry, [
+            'defaultTopics' => ['/notifications', '/alerts'],
+        ]);
+
+        $topics = $component->getTopics();
+        $this->assertEquals(['/notifications', '/alerts'], $topics);
+    }
+
+    /**
+     * Test addTopic works with defaultTopics
+     */
+    public function testAddTopicWorksWithDefaultTopics(): void
+    {
+        $request = new ServerRequest();
+        $controller = new Controller($request);
+        $controller->setResponse(new Response());
+
+        $registry = new ComponentRegistry($controller);
+        $component = new MercureComponent($registry, [
+            'defaultTopics' => ['/notifications'],
+        ]);
+
+        $component->addTopic('/books/123');
+
+        $topics = $component->getTopics();
+        $this->assertEquals(['/notifications', '/books/123'], $topics);
+    }
+
+    /**
+     * Test beforeRender sets view variable
+     */
+    public function testBeforeRenderSetsViewVariable(): void
+    {
+        $this->component->addTopics(['/books/123', '/notifications']);
+
+        $event = new Event('Controller.beforeRender', $this->controller);
+        $this->component->beforeRender($event);
+
+        $viewVars = $this->controller->viewBuilder()->getVars();
+        $this->assertArrayHasKey('_mercureTopics', $viewVars);
+        $this->assertEquals(['/books/123', '/notifications'], $viewVars['_mercureTopics']);
+    }
+
+    /**
+     * Test beforeRender does not set variable when no topics
+     */
+    public function testBeforeRenderDoesNotSetVariableWhenNoTopics(): void
+    {
+        $event = new Event('Controller.beforeRender', $this->controller);
+        $this->component->beforeRender($event);
+
+        $viewVars = $this->controller->viewBuilder()->getVars();
+        $this->assertArrayNotHasKey('_mercureTopics', $viewVars);
+    }
+
+    /**
+     * Test getTopics returns empty array initially
+     */
+    public function testGetTopicsReturnsEmptyArrayInitially(): void
+    {
+        $topics = $this->component->getTopics();
+        $this->assertEquals([], $topics);
+    }
 }

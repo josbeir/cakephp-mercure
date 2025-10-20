@@ -6,6 +6,7 @@ namespace Mercure\View\Helper;
 use Cake\View\Helper;
 use Mercure\Authorization;
 use Mercure\Internal\ConfigurationHelper;
+use Mercure\TopicManagementTrait;
 
 /**
  * Mercure Helper
@@ -64,6 +65,8 @@ use Mercure\Internal\ConfigurationHelper;
  */
 class MercureHelper extends Helper
 {
+    use TopicManagementTrait;
+
     /**
      * Default configuration
      *
@@ -72,13 +75,6 @@ class MercureHelper extends Helper
     protected array $_defaultConfig = [
         'defaultTopics' => [],
     ];
-
-    /**
-     * Runtime topics (includes default topics + dynamically added topics)
-     *
-     * @var array<string>
-     */
-    protected array $topics = [];
 
     /**
      * Initialize callback
@@ -92,36 +88,12 @@ class MercureHelper extends Helper
         // Initialize topics from config
         $defaultTopics = $this->getConfig('defaultTopics', []);
         $this->topics = is_array($defaultTopics) ? $defaultTopics : [];
-    }
 
-    /**
-     * Add a single topic to the helper's topics
-     *
-     * @param string $topic Topic to add
-     * @return $this
-     */
-    public function addTopic(string $topic)
-    {
-        if (!in_array($topic, $this->topics, true)) {
-            $this->topics[] = $topic;
+        // Merge with topics from component (if set)
+        $viewTopics = $this->getView()->get('_mercureTopics');
+        if (is_array($viewTopics)) {
+            $this->addTopics($viewTopics);
         }
-
-        return $this;
-    }
-
-    /**
-     * Add multiple topics to the helper's topics
-     *
-     * @param array<string> $topics Topics to add
-     * @return $this
-     */
-    public function addTopics(array $topics)
-    {
-        foreach ($topics as $topic) {
-            $this->addTopic($topic);
-        }
-
-        return $this;
     }
 
     /**
