@@ -187,14 +187,14 @@ Pick the approach that best fits your workflow:
 
 | Scenario | Recommended Approach | Method to Use |
 |----------|---------------------|---------------|
-| **Authorize in controller, display URL in template** | `MercureComponent` + `url()` or `getHubUrl()` | `$this->Mercure->authorize()` in controller, `$this->Mercure->url($topics)` or `getHubUrl($topics)` in template |
+| **Authorize in controller, display URL in template** | `MercureComponent` + `url()` | `$this->Mercure->authorize()` in controller, `$this->Mercure->url($topics)` in template |
 | **Authorize directly in template** | `MercureHelper::url()` with `subscribe` | `$this->Mercure->url($topics, $subscribe)` |
-| **Public topics (no authorization)** | `url()` or `getHubUrl()` | `$this->Mercure->url($topics)` or `$this->Mercure->getHubUrl($topics)` |
+| **Public topics (no authorization)** | `url()` | `$this->Mercure->url($topics)` |
 | **Manual response control** | `Authorization` facade | `Authorization::setCookie($response, $subscribe)` |
 
 > [!TIP]
 > **Easiest:** Use `MercureHelper::url($topics, $subscribe)` directly in templates for quick setup.
-> **Best Practice:** For larger applications, handle authorization in controllers using `MercureComponent`, then use `url($topics)` or `getHubUrl($topics)` in templates. This keeps authorization logic centralized and testable.
+> **Best Practice:** For larger applications, handle authorization in controllers using `MercureComponent`, then use `url($topics)` in templates. This keeps authorization logic centralized and testable.
 
 ### Publishing Updates
 
@@ -414,9 +414,6 @@ The plugin provides a View Helper to generate Mercure URLs in your templates.
 > **Authorization Consideration:** When using the `MercureHelper`, understand the difference:
 > - `$this->Mercure->url($topics)` - Gets URL **without authorization** (when `$subscribe` is omitted)
 > - `$this->Mercure->url($topics, $subscribe)` - Gets URL **and sets authorization cookie** (when `$subscribe` is provided)
-> - `$this->Mercure->getHubUrl($topics)` - Gets URL **without authorization** (explicit method)
->
-> Both `url($topics)` and `getHubUrl($topics)` work for public topics. Use `getHubUrl()` when you want to be explicit that no authorization is happening.
 
 First, load the helper in your controller or `AppView`:
 
@@ -437,7 +434,7 @@ Then subscribe to updates from your templates:
 
 <script>
 // For public topics (no authorization needed)
-const eventSource = new EventSource('<?= $this->Mercure->getHubUrl(['https://example.com/books/1']) ?>');
+const eventSource = new EventSource('<?= $this->Mercure->url(['https://example.com/books/1']) ?>');
 
 eventSource.onmessage = (event) => {
     const data = JSON.parse(event.data);
@@ -446,13 +443,12 @@ eventSource.onmessage = (event) => {
 </script>
 ```
 
-For public topics, you can use either `url($topics)` or `getHubUrl($topics)` - both generate the URL without authorization. Use `getHubUrl()` to be explicit that no authorization is happening.
-
 Subscribe to multiple topics:
 
 ```php
 <script>
-const url = '<?= $this->Mercure->getHubUrl([
+// Subscribe to multiple topics
+const url = '<?= $this->Mercure->url([
     'https://example.com/books/1',
     'https://example.com/notifications'
 ]) ?>';
@@ -469,7 +465,7 @@ If you need to access the Mercure URL from an external JavaScript file, store it
 ```php
 <script type="application/json" id="mercure-url">
 <?= json_encode(
-    $this->Mercure->getHubUrl(['https://example.com/books/1']),
+    $this->Mercure->url(['https://example.com/books/1']),
     JSON_UNESCAPED_SLASHES | JSON_HEX_TAG
 ) ?>
 </script>
@@ -578,23 +574,20 @@ eventSource.onmessage = (event) => {
 </script>
 ```
 
-> [!WARNING]
-> **Important:** The `url()` method **only sets authorization when the `$subscribe` parameter is provided**. If you're already handling authorization in your controller (via `MercureComponent`), you can use either:
+> [!NOTE]
+> **Separation of Concerns:** The `url()` method **only sets authorization when the `$subscribe` parameter is provided**. If you're already handling authorization in your controller (via `MercureComponent`), simply omit the `$subscribe` parameter:
 >
 > ```php
 > // Authorization already set in controller
 > $this->Mercure->authorize(['/books/123']);
 >
-> // In template: either of these works (no duplicate authorization)
-> const url1 = '<?= $this->Mercure->url(['/books/123']) ?>';  // No $subscribe = no auth
-> const url2 = '<?= $this->Mercure->getHubUrl(['/books/123']) ?>';  // Explicit
+> // In template: just get the URL (no duplicate authorization)
+> const url = '<?= $this->Mercure->url(['/books/123']) ?>';
 > ```
->
-> Use `getHubUrl()` when you want to be explicit that authorization is handled elsewhere.
 
 #### Setting Default Topics
 
-You can configure default topics that will be automatically merged with any topics you provide to `url()` or `getHubUrl()`. This is useful when you want certain topics (like notifications or global alerts) to be included in every subscription:
+You can configure default topics that will be automatically merged with any topics you provide to `url()`. This is useful when you want certain topics (like notifications or global alerts) to be included in every subscription:
 
 ```php
 // In your controller or AppView
@@ -612,7 +605,7 @@ public function initialize(): void
 }
 ```
 
-Now every call to `url()` or `getHubUrl()` will automatically include these default topics:
+Now every call to `url()` will automatically include these default topics:
 
 ```php
 // In your template
@@ -620,10 +613,15 @@ Now every call to `url()` or `getHubUrl()` will automatically include these defa
 // This will subscribe to: /notifications, /alerts, AND /books/123
 const url = '<?= $this->Mercure->url(['/books/123']) ?>';
 const eventSource = new EventSource(url, { withCredentials: true });
-
-// Access configured defaults if needed
-const defaults = <?= json_encode($this->Mercure->getConfig('defaultTopics', [])) ?>;
 </script>
+
+// You can also add topics dynamically:
+$this->Mercure->addTopic('/user/' . $userId . '/messages');
+$this->Mercure->addTopics(['/books/456', '/comments/789']);
+
+// These will be merged with configured defaults
+const url = '<?= $this->Mercure->url(['/books/123']) ?>';
+// Result includes: /notifications, /alerts, /user/{id}/messages, /books/456, /comments/789, AND /books/123
 ```
 
 #### Using the Facade (Alternative)
@@ -911,8 +909,6 @@ public function testAuthorization(): void
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `publish(Update $update)` | `bool` | Publish an update to the hub |
-| `getHubUrl()` | `string` | Get the server-side hub URL |
-| `getPublicUrl()` | `string` | Get the client-side hub URL |
 | `setInstance(PublisherInterface $publisher)` | `void` | Set custom instance (for testing) |
 | `clear()` | `void` | Clear singleton instance |
 
@@ -943,8 +939,6 @@ public function initialize(): void
 | `publishJson(string\|array $topics, mixed $data, ...)` | `bool` | Publish JSON data (auto-encodes) |
 | `publishView(string\|array $topics, ?string $template, ?string $element, array $data, ...)` | `bool` | Publish rendered view/element |
 | `getCookieName()` | `string` | Get the cookie name |
-| `getHubUrl()` | `string` | Get the hub URL |
-| `getPublicUrl()` | `string` | Get the public hub URL |
 
 **Authorization methods** support fluent chaining:
 
@@ -991,15 +985,14 @@ Static facade for direct authorization management (alternative to component).
 | `clearCookie(Response $response)` | `Response` | Clear authorization cookie |
 | `addDiscoveryHeader(Response $response)` | `Response` | Add Mercure discovery Link header |
 | `getCookieName()` | `string` | Get the cookie name |
-| `getHubUrl()` | `string` | Get the hub URL |
-| `getPublicUrl()` | `string` | Get the public hub URL |
 
 ### MercureHelper
 
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `url(array\|string\|null $topics, array $subscribe, array $additionalClaims)` | `string` | Get hub URL **and optionally authorize** (only sets cookie when `$subscribe` is provided). Merges with default topics if configured. |
-| `getHubUrl(array $topics, array $options)` | `string` | Get hub URL **without authorization** (explicit, no cookie ever set). Merges with default topics if configured. |
+| `addTopic(string $topic)` | `$this` | Add a single topic to default topics (fluent interface) |
+| `addTopics(array $topics)` | `$this` | Add multiple topics to default topics (fluent interface) |
 | `authorize(array $subscribe, array $additionalClaims)` | `void` | Set authorization cookie explicitly |
 | `clearAuthorization()` | `void` | Clear authorization cookie |
 | `discover()` | `void` | Add Mercure discovery Link header |
@@ -1010,7 +1003,7 @@ Static facade for direct authorization management (alternative to component).
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `defaultTopics` | `array` | `[]` | Topics to automatically merge with every subscription |
+| `defaultTopics` | `array` | `[]` | Topics to automatically merge with every subscription (read-only, not mutated by `addTopic()`/`addTopics()`) |
 
 ### Update
 

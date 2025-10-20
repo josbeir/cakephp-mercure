@@ -34,6 +34,10 @@ use Mercure\Internal\ConfigurationHelper;
  * // Default topics will be merged with provided topics
  * $hubUrl = $this->Mercure->url(['/books/123']); // Result: ['/books/123', '/notifications', '/alerts']
  *
+ * // Add topics dynamically
+ * $this->Mercure->addTopic('/user/123/messages');
+ * $this->Mercure->addTopics(['/books/456', '/comments/789']);
+ *
  * // Simple usage: Just get the hub URL with default topics
  * $hubUrl = $this->Mercure->url();
  *
@@ -53,9 +57,8 @@ use Mercure\Internal\ConfigurationHelper;
  * // Add Mercure discovery header
  * $this->Mercure->discover();
  *
- * // Legacy API (still supported):
+ * // Manual authorization (if needed separately):
  * $this->Mercure->authorize(['/books/123', '/notifications']);
- * $hubUrl = $this->Mercure->getHubUrl(['/books/123']);
  * $this->Mercure->clearAuthorization();
  * ```
  */
@@ -71,19 +74,69 @@ class MercureHelper extends Helper
     ];
 
     /**
-     * Merge provided topics with default topics (removing duplicates)
+     * Runtime topics (includes default topics + dynamically added topics)
+     *
+     * @var array<string>
+     */
+    protected array $topics = [];
+
+    /**
+     * Initialize callback
+     *
+     * @param array<string, mixed> $config Configuration
+     */
+    public function initialize(array $config): void
+    {
+        parent::initialize($config);
+
+        // Initialize topics from config
+        $defaultTopics = $this->getConfig('defaultTopics', []);
+        $this->topics = is_array($defaultTopics) ? $defaultTopics : [];
+    }
+
+    /**
+     * Add a single topic to the helper's topics
+     *
+     * @param string $topic Topic to add
+     * @return $this
+     */
+    public function addTopic(string $topic)
+    {
+        if (!in_array($topic, $this->topics, true)) {
+            $this->topics[] = $topic;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Add multiple topics to the helper's topics
+     *
+     * @param array<string> $topics Topics to add
+     * @return $this
+     */
+    public function addTopics(array $topics)
+    {
+        foreach ($topics as $topic) {
+            $this->addTopic($topic);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Merge provided topics with helper's topics (removing duplicates)
      *
      * @param array<string> $topics Provided topics
      * @return array<string>
      */
     protected function mergeTopics(array $topics): array
     {
-        $defaultTopics = $this->getConfig('defaultTopics', []);
-        if ($defaultTopics === []) {
+        if ($this->topics === []) {
             return $topics;
         }
 
-        return array_values(array_unique(array_merge($defaultTopics, $topics)));
+        return array_values(array_unique(array_merge($this->topics, $topics)));
     }
 
     /**
@@ -126,31 +179,6 @@ class MercureHelper extends Helper
         }
 
         return $this->buildSubscriptionUrl($hubUrl, $topics, []);
-    }
-
-    /**
-     * Get the Mercure hub URL
-     *
-     * Optionally builds a URL with topic query parameters for EventSource connections.
-     * Default topics (if configured) will be automatically merged with provided topics.
-     *
-     * @param array<string> $topics Optional topics to subscribe to
-     * @param array<string, mixed> $options Additional query parameters
-     * @return string Hub URL
-     * @throws \Mercure\Exception\MercureException
-     */
-    public function getHubUrl(array $topics = [], array $options = []): string
-    {
-        // Merge with default topics
-        $topics = $this->mergeTopics($topics);
-
-        $hubUrl = ConfigurationHelper::getPublicUrl();
-
-        if ($topics === [] && $options === []) {
-            return $hubUrl;
-        }
-
-        return $this->buildSubscriptionUrl($hubUrl, $topics, $options);
     }
 
     /**

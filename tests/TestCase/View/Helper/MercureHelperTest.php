@@ -48,7 +48,7 @@ class MercureHelperTest extends TestCase
         $this->view = new View();
         $this->view->setResponse(new Response());
 
-        $this->helper = new MercureHelper($this->view);
+        $this->helper = new MercureHelper($this->view, ['defaultTopics' => []]);
     }
 
     /**
@@ -62,44 +62,44 @@ class MercureHelperTest extends TestCase
     }
 
     /**
-     * Test getHubUrl returns configured URL
+     * Test url returns configured URL
      */
-    public function testGetHubUrlReturnsConfiguredUrl(): void
+    public function testUrlReturnsConfiguredUrl(): void
     {
-        $url = $this->helper->getHubUrl();
+        $url = $this->helper->url();
         $this->assertEquals('https://mercure.example.com/.well-known/mercure', $url);
     }
 
     /**
-     * Test getHubUrl throws exception when not configured
+     * Test url throws exception when not configured
      */
-    public function testGetHubUrlThrowsExceptionWhenNotConfigured(): void
+    public function testUrlThrowsExceptionWhenNotConfigured(): void
     {
         Configure::write('Mercure.url', '');
 
         $this->expectException(MercureException::class);
         $this->expectExceptionMessage('Mercure hub URL is not configured');
 
-        $this->helper->getHubUrl();
+        $this->helper->url();
     }
 
     /**
-     * Test getHubUrl with single topic
+     * Test url with single topic
      */
-    public function testGetHubUrlWithSingleTopic(): void
+    public function testUrlWithSingleTopic(): void
     {
-        $url = $this->helper->getHubUrl(['/feeds/123']);
+        $url = $this->helper->url(['/feeds/123']);
         $expected = 'https://mercure.example.com/.well-known/mercure?topic=' . urlencode('/feeds/123');
 
         $this->assertEquals($expected, $url);
     }
 
     /**
-     * Test getHubUrl with multiple topics
+     * Test url with multiple topics
      */
-    public function testGetHubUrlWithMultipleTopics(): void
+    public function testUrlWithMultipleTopics(): void
     {
-        $url = $this->helper->getHubUrl(['/feeds/123', '/notifications/*']);
+        $url = $this->helper->url(['/feeds/123', '/notifications/*']);
         $expectedTopic1 = urlencode('/feeds/123');
         $expectedTopic2 = urlencode('/notifications/*');
         $expected = 'https://mercure.example.com/.well-known/mercure?topic=' . $expectedTopic1 . '&topic=' . $expectedTopic2;
@@ -108,33 +108,13 @@ class MercureHelperTest extends TestCase
     }
 
     /**
-     * Test getHubUrl with topics and additional options
+     * Test url handles existing query string
      */
-    public function testGetHubUrlWithTopicsAndOptions(): void
-    {
-        $url = $this->helper->getHubUrl(['/feeds/123'], ['lastEventId' => 'abc-123']);
-        $this->assertStringContainsString('topic=' . urlencode('/feeds/123'), $url);
-        $this->assertStringContainsString('lastEventId=abc-123', $url);
-    }
-
-    /**
-     * Test getHubUrl with array option values
-     */
-    public function testGetHubUrlWithArrayOptionValues(): void
-    {
-        $url = $this->helper->getHubUrl([], ['filter' => ['status', 'priority']]);
-        $this->assertStringContainsString('filter=status', $url);
-        $this->assertStringContainsString('filter=priority', $url);
-    }
-
-    /**
-     * Test getHubUrl handles existing query string
-     */
-    public function testGetHubUrlHandlesExistingQueryString(): void
+    public function testUrlHandlesExistingQueryString(): void
     {
         Configure::write('Mercure.url', 'https://mercure.example.com/.well-known/mercure?existing=param');
 
-        $url = $this->helper->getHubUrl(['/feeds/123']);
+        $url = $this->helper->url(['/feeds/123']);
         $this->assertStringContainsString('existing=param', $url);
         $this->assertStringContainsString('&topic=', $url);
     }
@@ -218,7 +198,7 @@ class MercureHelperTest extends TestCase
      */
     public function testUrlEncodingHandlesSpecialCharacters(): void
     {
-        $url = $this->helper->getHubUrl(['/feeds/{id}', '/user/name@example.com']);
+        $url = $this->helper->url(['/feeds/{id}', '/user/name@example.com']);
 
         $this->assertStringContainsString(urlencode('/feeds/{id}'), $url);
         $this->assertStringContainsString(urlencode('/user/name@example.com'), $url);
@@ -230,7 +210,7 @@ class MercureHelperTest extends TestCase
     public function testHelperWorksWithoutExplicitConfiguration(): void
     {
         // Helper should use singleton automatically
-        $url = $this->helper->getHubUrl();
+        $url = $this->helper->url();
         $this->assertNotEmpty($url);
 
         $this->helper->authorize(['/test']);
@@ -263,42 +243,42 @@ class MercureHelperTest extends TestCase
         $helper2 = new MercureHelper($view2);
 
         $this->assertEquals($this->helper->getCookieName(), $helper2->getCookieName());
-        $this->assertEquals($this->helper->getHubUrl(), $helper2->getHubUrl());
+        $this->assertEquals($this->helper->url(), $helper2->url());
     }
 
     /**
-     * Test getHubUrl returns public_url when configured
+     * Test url returns public_url when configured
      */
-    public function testGetHubUrlReturnsPublicUrlWhenConfigured(): void
+    public function testUrlReturnsPublicUrlWhenConfigured(): void
     {
         Configure::write('Mercure.url', 'http://internal.mercure:3000/.well-known/mercure');
         Configure::write('Mercure.public_url', 'https://mercure.example.com/.well-known/mercure');
 
-        $url = $this->helper->getHubUrl();
+        $url = $this->helper->url();
         $this->assertEquals('https://mercure.example.com/.well-known/mercure', $url);
     }
 
     /**
-     * Test getHubUrl falls back to url when public_url not set
+     * Test url falls back to url when public_url not set
      */
-    public function testGetHubUrlFallsBackToUrlWhenPublicUrlNotSet(): void
+    public function testUrlFallsBackToUrlWhenPublicUrlNotSet(): void
     {
         Configure::write('Mercure.url', 'http://localhost:3000/.well-known/mercure');
         Configure::write('Mercure.public_url', null);
 
-        $url = $this->helper->getHubUrl();
+        $url = $this->helper->url();
         $this->assertEquals('http://localhost:3000/.well-known/mercure', $url);
     }
 
     /**
-     * Test getHubUrl with public_url and topics
+     * Test url with public_url and topics
      */
-    public function testGetHubUrlWithPublicUrlAndTopics(): void
+    public function testUrlWithPublicUrlAndTopics(): void
     {
         Configure::write('Mercure.url', 'http://internal:3000/.well-known/mercure');
         Configure::write('Mercure.public_url', 'https://public.example.com/.well-known/mercure');
 
-        $url = $this->helper->getHubUrl(['/feeds/123']);
+        $url = $this->helper->url(['/feeds/123']);
         $this->assertStringContainsString('https://public.example.com', $url);
         $this->assertStringContainsString('topic=' . urlencode('/feeds/123'), $url);
     }
@@ -339,9 +319,9 @@ class MercureHelperTest extends TestCase
     }
 
     /**
-     * Test url() with multiple topics
+     * Test url() method with multiple topics
      */
-    public function testUrlWithMultipleTopics(): void
+    public function testUrlMethodWithMultipleTopics(): void
     {
         $url = $this->helper->url(['/feeds/123', '/notifications/*']);
         $expectedTopic1 = urlencode('/feeds/123');
@@ -604,7 +584,7 @@ class MercureHelperTest extends TestCase
         ]);
 
         // Get URL with additional topics
-        $url = $helper->getHubUrl(['/books/123']);
+        $url = $helper->url(['/books/123']);
 
         // Should contain all topics
         $this->assertStringContainsString('topic=%2Fnotifications', $url);
@@ -637,7 +617,7 @@ class MercureHelperTest extends TestCase
         ]);
 
         // Provide a topic that overlaps with defaults
-        $url = $helper->getHubUrl(['/notifications', '/books/123']);
+        $url = $helper->url(['/notifications', '/books/123']);
 
         // Count occurrences of /notifications - should appear only once
         $count = substr_count($url, 'topic=%2Fnotifications');
@@ -677,9 +657,211 @@ class MercureHelperTest extends TestCase
      */
     public function testHelperWorksWithoutDefaultTopics(): void
     {
-        $url = $this->helper->getHubUrl(['/books/123']);
+        $url = $this->helper->url(['/books/123']);
 
         $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
         $this->assertEquals(1, substr_count($url, 'topic='));
+    }
+
+    /**
+     * Test addTopic() adds a single topic to helper's topics
+     */
+    public function testAddTopicAddsTopicToDefaultTopics(): void
+    {
+        $this->helper->addTopic('/notifications');
+
+        // Verify topic is added by checking it's used in url generation
+        $url = $this->helper->url();
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+    }
+
+    /**
+     * Test addTopic() prevents duplicate topics
+     */
+    public function testAddTopicPreventsDuplicates(): void
+    {
+        $this->helper->addTopic('/notifications');
+        $this->helper->addTopic('/notifications');
+
+        // Verify only one topic parameter in URL
+        $url = $this->helper->url();
+        $this->assertEquals(1, substr_count($url, 'topic='));
+    }
+
+    /**
+     * Test addTopic() returns $this for chaining
+     */
+    public function testAddTopicReturnsThisForChaining(): void
+    {
+        $result = $this->helper->addTopic('/notifications');
+
+        $this->assertSame($this->helper, $result);
+    }
+
+    /**
+     * Test addTopic() can be chained multiple times
+     */
+    public function testAddTopicCanBeChained(): void
+    {
+        $this->helper
+            ->addTopic('/notifications')
+            ->addTopic('/alerts')
+            ->addTopic('/messages');
+
+        // Verify all three topics in URL
+        $url = $this->helper->url();
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+        $this->assertStringContainsString('topic=%2Falerts', $url);
+        $this->assertStringContainsString('topic=%2Fmessages', $url);
+        $this->assertEquals(3, substr_count($url, 'topic='));
+    }
+
+    /**
+     * Test addTopics() adds multiple topics at once
+     */
+    public function testAddTopicsAddsMultipleTopics(): void
+    {
+        $this->helper->addTopics(['/notifications', '/alerts', '/messages']);
+
+        // Verify all three topics in URL
+        $url = $this->helper->url();
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+        $this->assertStringContainsString('topic=%2Falerts', $url);
+        $this->assertStringContainsString('topic=%2Fmessages', $url);
+        $this->assertEquals(3, substr_count($url, 'topic='));
+    }
+
+    /**
+     * Test addTopics() prevents duplicates
+     */
+    public function testAddTopicsPreventsDuplicates(): void
+    {
+        $this->helper->addTopics(['/notifications', '/alerts']);
+        $this->helper->addTopics(['/alerts', '/messages']);
+
+        // Verify only 3 unique topics in URL (alerts not duplicated)
+        $url = $this->helper->url();
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+        $this->assertStringContainsString('topic=%2Falerts', $url);
+        $this->assertStringContainsString('topic=%2Fmessages', $url);
+        $this->assertEquals(3, substr_count($url, 'topic='));
+    }
+
+    /**
+     * Test addTopics() returns $this for chaining
+     */
+    public function testAddTopicsReturnsThisForChaining(): void
+    {
+        $result = $this->helper->addTopics(['/notifications', '/alerts']);
+
+        $this->assertSame($this->helper, $result);
+    }
+
+    /**
+     * Test addTopic() works with helper configured with default topics
+     */
+    public function testAddTopicWorksWithConfiguredDefaultTopics(): void
+    {
+        $helper = new MercureHelper($this->view, [
+            'defaultTopics' => ['/notifications'],
+        ]);
+
+        $helper->addTopic('/alerts');
+
+        // Verify both default topic and added topic in URL
+        $url = $helper->url();
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+        $this->assertStringContainsString('topic=%2Falerts', $url);
+        $this->assertEquals(2, substr_count($url, 'topic='));
+    }
+
+    /**
+     * Test dynamically added topics are merged with url() method
+     */
+    public function testDynamicallyAddedTopicsAreMergedWithUrlMethod(): void
+    {
+        $this->helper->addTopic('/notifications');
+        $this->helper->addTopic('/alerts');
+
+        $url = $this->helper->url(['/books/123']);
+
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+        $this->assertStringContainsString('topic=%2Falerts', $url);
+        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+        $this->assertEquals(3, substr_count($url, 'topic='));
+    }
+
+    /**
+     * Test dynamically added topics are merged with url() method
+     */
+    public function testDynamicallyAddedTopicsAreMergedWithUrl(): void
+    {
+        $this->helper->addTopics(['/notifications', '/alerts']);
+
+        $url = $this->helper->url(['/books/123']);
+
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+        $this->assertStringContainsString('topic=%2Falerts', $url);
+        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+        $this->assertEquals(3, substr_count($url, 'topic='));
+    }
+
+    /**
+     * Test addTopics() with empty array does nothing
+     */
+    public function testAddTopicsWithEmptyArrayDoesNothing(): void
+    {
+        $this->helper->addTopics([]);
+
+        // Verify no topics in URL
+        $url = $this->helper->url();
+        $this->assertStringNotContainsString('topic=', $url);
+    }
+
+    /**
+     * Test addTopic() does not mutate the defaultTopics config
+     */
+    public function testAddTopicDoesNotMutateConfig(): void
+    {
+        $helper = new MercureHelper($this->view, [
+            'defaultTopics' => ['/notifications'],
+        ]);
+
+        // Add a topic dynamically
+        $helper->addTopic('/alerts');
+
+        // Verify config remains unchanged
+        $config = $helper->getConfig('defaultTopics');
+        $this->assertEquals(['/notifications'], $config);
+
+        // But the URL should include both topics
+        $url = $helper->url();
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+        $this->assertStringContainsString('topic=%2Falerts', $url);
+        $this->assertEquals(2, substr_count($url, 'topic='));
+    }
+
+    /**
+     * Test addTopics() does not mutate the defaultTopics config
+     */
+    public function testAddTopicsDoesNotMutateConfig(): void
+    {
+        $helper = new MercureHelper($this->view, [
+            'defaultTopics' => ['/notifications'],
+        ]);
+
+        // Add topics dynamically
+        $helper->addTopics(['/alerts', '/messages']);
+
+        // Verify config remains unchanged
+        $config = $helper->getConfig('defaultTopics');
+        $this->assertEquals(['/notifications'], $config);
+
+        // But the URL should include all topics
+        $url = $helper->url();
+        $this->assertStringContainsString('topic=%2Fnotifications', $url);
+        $this->assertStringContainsString('topic=%2Falerts', $url);
+        $this->assertStringContainsString('topic=%2Fmessages', $url);
+        $this->assertEquals(3, substr_count($url, 'topic='));
     }
 }

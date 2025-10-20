@@ -6,7 +6,6 @@ namespace Mercure\Controller\Component;
 use Cake\Controller\Component;
 use Cake\Event\EventInterface;
 use Mercure\Authorization;
-use Mercure\Internal\ConfigurationHelper;
 use Mercure\Publisher;
 use Mercure\Service\AuthorizationInterface;
 use Mercure\Service\PublisherInterface;
@@ -204,33 +203,6 @@ class MercureComponent extends Component
     public function getCookieName(): string
     {
         return $this->authorizationService->getCookieName();
-    }
-
-    /**
-     * Get the Mercure hub URL
-     *
-     * This is the server-side URL used for publishing updates.
-     *
-     * @return string Hub URL
-     * @throws \Mercure\Exception\MercureException
-     */
-    public function getHubUrl(): string
-    {
-        return ConfigurationHelper::getHubUrl();
-    }
-
-    /**
-     * Get the Mercure public URL
-     *
-     * This is the client-facing URL for EventSource connections.
-     * Falls back to hub URL if not configured.
-     *
-     * @return string Public URL
-     * @throws \Mercure\Exception\MercureException
-     */
-    public function getPublicUrl(): string
-    {
-        return ConfigurationHelper::getPublicUrl();
     }
 
     /**

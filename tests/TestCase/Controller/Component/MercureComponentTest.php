@@ -278,49 +278,6 @@ class MercureComponentTest extends TestCase
     }
 
     /**
-     * Test getHubUrl returns configured URL
-     */
-    public function testGetHubUrlReturnsConfiguredUrl(): void
-    {
-        $url = $this->component->getHubUrl();
-        $this->assertEquals('https://mercure.example.com/.well-known/mercure', $url);
-    }
-
-    /**
-     * Test getHubUrl throws exception when not configured
-     */
-    public function testGetHubUrlThrowsExceptionWhenNotConfigured(): void
-    {
-        Configure::write('Mercure.url', '');
-        Configure::write('Mercure.public_url', '');
-
-        $this->expectException(MercureException::class);
-        $this->expectExceptionMessage('Mercure hub URL is not configured');
-
-        $this->component->getHubUrl();
-    }
-
-    /**
-     * Test getPublicUrl returns configured public URL
-     */
-    public function testGetPublicUrlReturnsConfiguredPublicUrl(): void
-    {
-        $url = $this->component->getPublicUrl();
-        $this->assertEquals('https://public.mercure.example.com/.well-known/mercure', $url);
-    }
-
-    /**
-     * Test getPublicUrl falls back to url when public_url not set
-     */
-    public function testGetPublicUrlFallsBackToUrl(): void
-    {
-        Configure::write('Mercure.public_url', null);
-
-        $url = $this->component->getPublicUrl();
-        $this->assertEquals('https://mercure.example.com/.well-known/mercure', $url);
-    }
-
-    /**
      * Test startup with autoDiscover disabled
      */
     public function testStartupWithAutoDiscoverDisabled(): void
