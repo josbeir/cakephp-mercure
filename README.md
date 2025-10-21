@@ -28,7 +28,6 @@ Push real-time updates to clients using the Mercure protocol.
   - [Publishing Private Updates](#publishing-private-updates)
   - [Setting Authorization Cookies](#setting-authorization-cookies)
     - [Using the Component](#using-the-component)
-    - [Authorization Builder Pattern](#authorization-builder-pattern)
     - [Setting Default Topics](#setting-default-topics)
     - [Using the Facade classes](#using-the-facade-classes)
 - [Mercure Discovery](#mercure-discovery)
@@ -310,7 +309,7 @@ $update = JsonUpdate::create(
 $update = (new JsonUpdate('https://example.com/books/1'))
     ->data(['title' => 'New Book', 'price' => 29.99])
     ->private()
-    ->id('book-123')
+    ->id(Text::uuid())
     ->type('book.created')
     ->retry(5000)
     ->build();
@@ -356,7 +355,7 @@ $update = ViewUpdate::create(
 $update = (new ViewUpdate('https://example.com/notifications'))
     ->template('Notifications/item')
     ->viewVars(['notification' => $notification])
-    ->viewOptions(['plugin' => 'MyPlugin'])
+    ->viewOptions(['key' => 'value'])
     ->build();
 
 Publisher::publish($update);
@@ -505,24 +504,18 @@ class BooksController extends AppController
         $book = $this->Books->get($id);
         $userId = $this->request->getAttribute('identity')->id;
 
-        // Fluent authorization with builder pattern
+        // Using builder pattern
         $this->Mercure
-            ->addSubscribe("https://example.com/books/{$id}", ['sub' => $userId])
-            ->addSubscribe("https://example.com/notifications/*", ['role' => 'user'])
-            ->authorize()
-            ->discover();
+            ->addTopic('https://example.com/books/123') // You can also set this using MercureHelper or using the defaultTopics option.
+            ->addSubscribe("https://example.com/books/{$id}")
+            ->addSubscribe("https://example.com/notifications/{$id}")
+            ->authorize() // This sets the actual JWT cookie.
 
-        // Or direct authorization (backward compatible)
+        // Or direct authorization
         $this->Mercure->authorize(
             subscribe: ["https://example.com/books/{$id}"],
-            additionalClaims: ['sub' => $userId]
+            additionalClaims: ['sub' => $userId] // Optional
         );
-
-        // Or build up gradually
-        $this->Mercure
-            ->addSubscribe("https://example.com/books/{$id}")
-            ->addSubscribe("https://example.com/user/{$userId}/updates", ['sub' => $userId])
-            ->authorize(); // Uses accumulated topics and claims
 
         $this->set('book', $book);
     }
@@ -530,7 +523,7 @@ class BooksController extends AppController
     public function logout()
     {
         // Clear authorization on logout
-        $this->Mercure->clearAuthorization();
+        $this->Mercure->clearAuthorization(); // Removes the JWT cookie.
 
         return $this->redirect(['action' => 'login']);
     }
@@ -544,36 +537,6 @@ The component provides separation of concerns (authorization in controller, URLs
 $this->loadComponent('Mercure.Mercure', [
     'autoDiscover' => true,  // Automatically add discovery headers
 ]);
-```
-
-#### Authorization Builder Pattern
-
-The component supports a fluent builder pattern for authorization, making it easy to build up topics and claims:
-
-```php
-// Build authorization gradually
-$this->Mercure
-    ->addSubscribe('/books/123', ['sub' => $userId])
-    ->addSubscribe('/notifications/*', ['role' => 'admin'])
-    ->authorize();
-
-// Add multiple topics at once
-$this->Mercure->addSubscribes(
-    ['/books/123', '/notifications/{id}'],
-    ['sub' => $userId, 'role' => 'admin']
-);
-
-// Mix with direct parameters
-$this->Mercure
-    ->addSubscribe('/books/123')
-    ->authorize(['/notifications/{id}'], ['sub' => $userId]);
-
-// Chain with topic management and discovery
-$this->Mercure
-    ->addTopic('/books/123') // For EventSource subscription
-    ->addSubscribe('/books/123', ['sub' => $userId]) // For authorization
-    ->authorize()
-    ->discover();
 ```
 
 #### Setting Default Topics
@@ -612,7 +575,7 @@ public function initialize(): void
 }
 ```
 
-Now every call to `url()` will automatically include these default topics:
+Now every call to `MercureHelper::url()` will automatically include these default topics:
 
 ```php
 // In your template
@@ -1114,7 +1077,7 @@ $update = (new JsonUpdate('/books/1'))
     ->data(['title' => 'Book', 'price' => 29.99])
     ->jsonOptions(JSON_UNESCAPED_UNICODE)
     ->private()
-    ->id('book-123')
+    ->id(Text::uuid())
     ->type('book.updated')
     ->retry(5000)
     ->build();
@@ -1166,7 +1129,7 @@ $update = (new ViewUpdate('/notifications'))
     ->template('Notifications/item')
     ->viewVars(['notification' => $notification])
     ->layout('ajax')
-    ->viewOptions(['plugin' => 'MyPlugin'])
+    ->viewOptions(['key' => 'value'])
     ->private()
     ->id('notif-123')
     ->type('notification.new')
@@ -1281,6 +1244,7 @@ Contributions are welcome! Please follow these guidelines:
    ```bash
    composer cs-check    # Check code style
    composer stan        # Run PHPStan analysis
+   composer rector      # Run rectoring
    composer test        # Run tests
    ```
 
