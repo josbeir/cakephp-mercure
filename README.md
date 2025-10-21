@@ -319,7 +319,10 @@ Publisher::publish($update);
 
 #### Publishing Rendered Views
 
-Use the `ViewUpdate` class to automatically render CakePHP views or elements and publish the rendered HTML:
+Use the `ViewUpdate` class to automatically render CakePHP views or elements and publish the rendered HTML.
+
+> [!NOTE]
+> This is especially handy when using JavaScript frameworks like [htmx](https://htmx.org/) (for instance, using the [htmx-sse extension](https://htmx.org/extensions/sse/)), [Hotwire](https://hotwired.dev/) (with [Turbo Streams](https://turbo.hotwired.dev/handbook/streams)), or similar reactive libraries, which can consume and swap HTML fragments received over Mercure for seamless real-time UI updates.
 
 ```php
 use Mercure\Publisher;
@@ -382,19 +385,6 @@ $update = (new ViewUpdate('https://example.com/users/123/messages'))
 
 Publisher::publish($update);
 ```
-
-> [!NOTE]
-> **View Class Configuration:** By default, `ViewUpdate` uses CakePHP's automatic view class selection (your `AppView` if it exists, otherwise the base `View` class). You can override this by setting `view_class` in your configuration:
->
-> ```php
-> // In config/app_mercure.php
-> return [
->     'Mercure' => [
->         'view_class' => \App\View\CustomView::class,
->         // ... other config
->     ],
-> ];
-> ```
 
 ### Subscribing to Updates
 
