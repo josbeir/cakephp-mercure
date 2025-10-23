@@ -39,6 +39,7 @@
         "stan": "phpstan analyse",
         "cs-check": "phpcs --colors -p -s",
         "cs-fix": "phpcbf --colors -p -s",
-        "rector": "rector --ansi"
+        "rector-check": "rector --dry-run --ansi",
+        "rector-fix": "rector --ansi"
     }
 }

@@ -1234,7 +1234,7 @@ Contributions are welcome! Please follow these guidelines:
    ```bash
    composer cs-check    # Check code style
    composer stan        # Run PHPStan analysis
-   composer rector      # Run rectoring
+   composer rector-check      # Run rectoring
    composer test        # Run tests
    ```
 

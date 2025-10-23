@@ -16,7 +16,6 @@ return RectorConfig::configure()
     ->withSkip([
         DisallowedEmptyRuleFixerRector::class,
         SimplifyIfElseToTernaryRector::class,
-        // CakePHP coding standards don't allow return type hints on fluent methods
         ReturnTypeFromStrictFluentReturnRector::class,
     ])
     ->withImportNames(
