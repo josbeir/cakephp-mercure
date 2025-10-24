@@ -809,16 +809,12 @@ For testing, mock the Publisher service to avoid actual HTTP calls:
 ```php
 use Mercure\Publisher;
 use Mercure\Service\PublisherInterface;
+use Mercure\TestSuite\MockPublisher;
 
 // In your test
 public function testPublishing(): void
 {
-    $mockPublisher = $this->createMock(PublisherInterface::class);
-    $mockPublisher->expects($this->once())
-        ->method('publish')
-        ->willReturn(true);
-
-    Publisher::setInstance($mockPublisher);
+    Publisher::setInstance(new MockPublisher());
 
     // Test your code that publishes updates
     $this->MyService->doSomething();
