@@ -814,6 +814,7 @@ use Mercure\TestSuite\MockPublisher;
 // In your test
 public function testPublishing(): void
 {
+    // Se the mock publisher
     Publisher::setInstance(new MockPublisher());
 
     // Test your code that publishes updates

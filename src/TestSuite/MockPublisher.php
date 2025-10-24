@@ -19,16 +19,14 @@ class MockPublisher implements PublisherInterface
      */
     private array $updates = [];
 
-    private string $hubUrl;
-
     /**
      * Constructor
      *
      * @param string $hubUrl Hub URL to return
      */
-    public function __construct(string $hubUrl = 'http://localhost:3000/.well-known/mercure')
-    {
-        $this->hubUrl = $hubUrl;
+    public function __construct(
+        protected readonly string $hubUrl = 'http://localhost:3000/.well-known/mercure',
+    ) {
     }
 
     /**
