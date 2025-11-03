@@ -244,29 +244,26 @@ class AuthorizationService implements AuthorizationInterface
 
         // Add rel="self" link if provided
         if ($selfUrl !== null) {
-            $selfLinkHeader = $this->buildLinkHeader($selfUrl, 'self');
-            $response = $response->withAddedHeader('Link', $selfLinkHeader);
+            $response = $response->withAddedLink($selfUrl, ['rel' => 'self']);
         }
 
         // Build rel="mercure" link with optional attributes
-        $hubUrl = $this->getPublicUrl();
-        $attributes = [];
+        $hubUrl = ConfigurationHelper::getPublicUrl();
+        $options = ['rel' => 'mercure'];
 
         if ($lastEventId !== null) {
-            $attributes['last-event-id'] = $lastEventId;
+            $options['last-event-id'] = $lastEventId;
         }
 
         if ($contentType !== null) {
-            $attributes['content-type'] = $contentType;
+            $options['content-type'] = $contentType;
         }
 
         if ($keySet !== null) {
-            $attributes['key-set'] = $keySet;
+            $options['key-set'] = $keySet;
         }
 
-        $mercureLinkHeader = $this->buildLinkHeader($hubUrl, 'mercure', $attributes);
-
-        return $response->withAddedHeader('Link', $mercureLinkHeader);
+        return $response->withAddedLink($hubUrl, $options);
     }
 
     /**
@@ -283,40 +280,5 @@ class AuthorizationService implements AuthorizationInterface
     {
         return $request->is('options')
             && $request->hasHeader('Access-Control-Request-Method');
-    }
-
-    /**
-     * Get the Mercure public URL from configuration
-     *
-     * This is the client-facing URL for EventSource connections.
-     * Falls back to url if not configured.
-     *
-     * @throws \Mercure\Exception\MercureException
-     */
-    private function getPublicUrl(): string
-    {
-        return ConfigurationHelper::getPublicUrl();
-    }
-
-    /**
-     * Build a Link header value according to RFC5988
-     *
-     * Constructs a Link header with the given URL, relation type, and optional attributes.
-     *
-     * @param string $url The URL for the link
-     * @param string $rel The relation type (e.g., "mercure", "self")
-     * @param array<string, string> $attributes Optional link attributes
-     * @return string Formatted Link header value
-     */
-    private function buildLinkHeader(string $url, string $rel, array $attributes = []): string
-    {
-        $parts = [sprintf('<%s>', $url)];
-        $parts[] = sprintf('rel="%s"', $rel);
-
-        foreach ($attributes as $name => $value) {
-            $parts[] = sprintf('%s="%s"', $name, $value);
-        }
-
-        return implode('; ', $parts);
     }
 }
