@@ -642,6 +642,49 @@ fetch('/api/resource')
     });
 ```
 
+### Discovery with Topics and Attributes
+
+The `discover()` method supports optional parameters that align with the Mercure specification:
+
+```php
+// Add discovery header with optional link attributes
+$this->Mercure->discover(
+    lastEventId: '123',
+    contentType: 'application/json',
+    keySet: 'https://example.com/.well-known/jwks.json'
+);
+```
+
+**Include subscription topics in discovery:**
+
+When you want the `rel="self"` Link header to include the topics the user is authorized for, enable `discoverWithTopics`:
+
+```php
+// Option 1: Enable per-call
+$this->Mercure
+    ->authorize(['/books/123', '/notifications/*'])
+    ->discover(includeTopics: true);
+
+// Option 2: Enable in component config
+$this->loadComponent('Mercure.Mercure', [
+    'discoverWithTopics' => true
+]);
+
+// Then in your action:
+$this->Mercure
+    ->authorize(['/books/123'])
+    ->discover(); // Automatically includes topics in rel="self"
+```
+
+This generates both headers:
+
+```
+Link: <https://hub.example.com/.well-known/mercure?topic=%2Fbooks%2F123>; rel="self"
+Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
+```
+
+The `rel="self"` header provides a ready-to-use subscription URL that clients can connect to directly.
+
 ### Using Middleware
 
 This is an alternative approach to add the discovery header automatically to all responses by using middleware:
@@ -863,8 +906,9 @@ public function initialize(): void
 {
     parent::initialize();
     $this->loadComponent('Mercure.Mercure', [
-        'autoDiscover' => true,  // Optional: auto-add discovery headers
-        'defaultTopics' => [     // Optional: topics available in all views
+        'autoDiscover' => true,      // Optional: auto-add discovery headers
+        'discoverWithTopics' => false, // Optional: include topics in rel="self"
+        'defaultTopics' => [         // Optional: topics available in all views
             '/notifications',
             '/global/alerts'
         ]
@@ -888,7 +932,7 @@ public function initialize(): void
 | `resetAdditionalClaims()` | `$this` | Reset accumulated JWT claims |
 | `authorize(array $subscribe = [], array $additionalClaims = [])` | `$this` | Set authorization cookie (merges with accumulated state, then resets) |
 | `clearAuthorization()` | `$this` | Clear authorization cookie |
-| `discover()` | `$this` | Add Mercure discovery Link header |
+| `discover(?bool $includeTopics, ?string $lastEventId, ?string $contentType, ?string $keySet)` | `$this` | Add Mercure discovery Link headers with optional attributes and topics |
 | `publish(Update $update)` | `bool` | Publish an update to the Mercure hub |
 | `publishJson(string\|array $topics, mixed $data, ...)` | `bool` | Publish JSON data (auto-encodes) |
 | `publishSimple(string\|array $topics, string $data, ...)` | `bool` | Publish simple string data (no encoding) |

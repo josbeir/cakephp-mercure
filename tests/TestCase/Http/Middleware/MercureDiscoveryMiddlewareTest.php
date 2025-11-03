@@ -105,7 +105,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
     public function testMiddlewareFallsBackToUrl(): void
     {
         Configure::write('Mercure.url', 'https://fallback.example.com/.well-known/mercure');
-        Configure::write('Mercure.public_url', null);
+        Configure::write('Mercure.public_url');
         Authorization::clear();
 
         $request = new ServerRequest();

@@ -4,13 +4,13 @@ declare(strict_types=1);
 namespace Mercure\Internal;
 
 /**
- * Query Builder
+ * Publish Query Builder
  *
- * Builds URL-encoded query strings for Mercure hub requests.
+ * Builds URL-encoded query strings for Mercure hub publish requests.
  *
  * @internal
  */
-class QueryBuilder
+class PublishQueryBuilder
 {
     /**
      * Build a URL-encoded query string from data

@@ -1135,4 +1135,235 @@ class MercureComponentTest extends TestCase
         $this->assertTrue($response2->getCookieCollection()->has('mercureAuth'));
         $this->assertEquals([], $this->component->getSubscribe());
     }
+
+    /**
+     * Test discover with includeTopics parameter
+     */
+    public function testDiscoverWithIncludeTopicsParameter(): void
+    {
+        $this->component
+            ->addSubscribe('/books/123')
+            ->addSubscribe('/notifications/*')
+            ->authorize()
+            ->discover(includeTopics: true);
+
+        $response = $this->controller->getResponse();
+        $linkHeaders = $response->getHeader('Link');
+
+        $this->assertCount(2, $linkHeaders);
+
+        // Check for rel="self" with topics
+        $selfHeader = null;
+        $mercureHeader = null;
+        foreach ($linkHeaders as $header) {
+            if (str_contains($header, 'rel="self"')) {
+                $selfHeader = $header;
+            }
+
+            if (str_contains($header, 'rel="mercure"')) {
+                $mercureHeader = $header;
+            }
+        }
+
+        $this->assertNotNull($selfHeader);
+        $this->assertNotNull($mercureHeader);
+        $this->assertStringContainsString('topic=%2Fbooks%2F123', $selfHeader);
+        $this->assertStringContainsString('topic=%2Fnotifications%2F%2A', $selfHeader);
+    }
+
+    /**
+     * Test discover without includeTopics does not add self link
+     */
+    public function testDiscoverWithoutIncludeTopicsDoesNotAddSelfLink(): void
+    {
+        $this->component
+            ->addSubscribe('/books/123')
+            ->authorize()
+            ->discover(includeTopics: false);
+
+        $response = $this->controller->getResponse();
+        $linkHeaders = $response->getHeader('Link');
+
+        // Should only have rel="mercure" header
+        $this->assertCount(1, $linkHeaders);
+        $this->assertStringContainsString('rel="mercure"', $linkHeaders[0]);
+        $this->assertStringNotContainsString('rel="self"', $linkHeaders[0]);
+    }
+
+    /**
+     * Test discover with includeTopics but no subscribe topics
+     */
+    public function testDiscoverWithIncludeTopicsButNoSubscribeTopics(): void
+    {
+        $this->component->discover(includeTopics: true);
+
+        $response = $this->controller->getResponse();
+        $linkHeaders = $response->getHeader('Link');
+
+        // Should only have rel="mercure" (no topics to include in self)
+        $this->assertCount(1, $linkHeaders);
+        $this->assertStringContainsString('rel="mercure"', $linkHeaders[0]);
+    }
+
+    /**
+     * Test discover with discoverWithTopics config option
+     */
+    public function testDiscoverWithDiscoverWithTopicsConfig(): void
+    {
+        $registry = new ComponentRegistry($this->controller);
+        $component = new MercureComponent($registry, [
+            'discoverWithTopics' => true,
+        ]);
+
+        $component
+            ->addSubscribe('/books/123')
+            ->authorize()
+            ->discover();
+
+        $response = $this->controller->getResponse();
+        $linkHeaders = $response->getHeader('Link');
+
+        $this->assertCount(2, $linkHeaders);
+
+        $selfHeaderFound = false;
+        foreach ($linkHeaders as $header) {
+            if (str_contains($header, 'rel="self"')) {
+                $selfHeaderFound = true;
+                $this->assertStringContainsString('topic=%2Fbooks%2F123', $header);
+            }
+        }
+
+        $this->assertTrue($selfHeaderFound);
+    }
+
+    /**
+     * Test discover parameter overrides config
+     */
+    public function testDiscoverParameterOverridesConfig(): void
+    {
+        $registry = new ComponentRegistry($this->controller);
+        $component = new MercureComponent($registry, [
+            'discoverWithTopics' => true,
+        ]);
+
+        $component
+            ->addSubscribe('/books/123')
+            ->authorize()
+            ->discover(includeTopics: false); // Override config
+
+        $response = $this->controller->getResponse();
+        $linkHeaders = $response->getHeader('Link');
+
+        // Should only have rel="mercure" (parameter overrides config)
+        $this->assertCount(1, $linkHeaders);
+        $this->assertStringContainsString('rel="mercure"', $linkHeaders[0]);
+    }
+
+    /**
+     * Test discover with lastEventId parameter
+     */
+    public function testDiscoverWithLastEventIdParameter(): void
+    {
+        $this->component->discover(lastEventId: 'urn:uuid:abc-123');
+
+        $response = $this->controller->getResponse();
+        $linkHeader = $response->getHeaderLine('Link');
+
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+        $this->assertStringContainsString('last-event-id="urn:uuid:abc-123"', $linkHeader);
+    }
+
+    /**
+     * Test discover with contentType parameter
+     */
+    public function testDiscoverWithContentTypeParameter(): void
+    {
+        $this->component->discover(contentType: 'application/ld+json');
+
+        $response = $this->controller->getResponse();
+        $linkHeader = $response->getHeaderLine('Link');
+
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+        $this->assertStringContainsString('content-type="application/ld+json"', $linkHeader);
+    }
+
+    /**
+     * Test discover with keySet parameter
+     */
+    public function testDiscoverWithKeySetParameter(): void
+    {
+        $this->component->discover(keySet: 'https://example.com/.well-known/jwks.json');
+
+        $response = $this->controller->getResponse();
+        $linkHeader = $response->getHeaderLine('Link');
+
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+        $this->assertStringContainsString('key-set="https://example.com/.well-known/jwks.json"', $linkHeader);
+    }
+
+    /**
+     * Test discover with all parameters
+     */
+    public function testDiscoverWithAllParameters(): void
+    {
+        $this->component
+            ->addSubscribe('/books/123')
+            ->authorize()
+            ->discover(
+                includeTopics: true,
+                lastEventId: 'urn:uuid:xyz',
+                contentType: 'application/merge-patch+json',
+                keySet: 'https://example.com/keys.json',
+            );
+
+        $response = $this->controller->getResponse();
+        $linkHeaders = $response->getHeader('Link');
+
+        $this->assertCount(2, $linkHeaders);
+
+        // Check rel="self" with topics
+        $selfHeaderFound = false;
+        $mercureHeaderFound = false;
+
+        foreach ($linkHeaders as $header) {
+            if (str_contains($header, 'rel="self"')) {
+                $selfHeaderFound = true;
+                $this->assertStringContainsString('topic=%2Fbooks%2F123', $header);
+            }
+
+            if (str_contains($header, 'rel="mercure"')) {
+                $mercureHeaderFound = true;
+                $this->assertStringContainsString('last-event-id="urn:uuid:xyz"', $header);
+                $this->assertStringContainsString('content-type="application/merge-patch+json"', $header);
+                $this->assertStringContainsString('key-set="https://example.com/keys.json"', $header);
+            }
+        }
+
+        $this->assertTrue($selfHeaderFound);
+        $this->assertTrue($mercureHeaderFound);
+    }
+
+    /**
+     * Test discover with topics returns chainable component
+     */
+    public function testDiscoverWithTopicsReturnsChainableComponent(): void
+    {
+        $result = $this->component
+            ->addSubscribe('/books/123')
+            ->authorize()
+            ->discover(includeTopics: true);
+
+        $this->assertSame($this->component, $result);
+    }
+
+    /**
+     * Test component default config includes discoverWithTopics
+     */
+    public function testComponentDefaultConfigIncludesDiscoverWithTopics(): void
+    {
+        $config = $this->component->getConfig();
+
+        $this->assertArrayHasKey('discoverWithTopics', $config);
+        $this->assertFalse($config['discoverWithTopics']);
+    }
 }

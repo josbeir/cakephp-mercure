@@ -259,7 +259,7 @@ class AuthorizationTest extends TestCase
      */
     public function testCookieWithNullExpires(): void
     {
-        Configure::write('Mercure.cookie.expires', null);
+        Configure::write('Mercure.cookie.expires');
         Authorization::clear();
 
         $response = new Response();
@@ -415,7 +415,7 @@ class AuthorizationTest extends TestCase
     public function testAddDiscoveryHeaderFallsBackToUrl(): void
     {
         Configure::write('Mercure.url', 'https://fallback.example.com/.well-known/mercure');
-        Configure::write('Mercure.public_url', null);
+        Configure::write('Mercure.public_url');
         Authorization::clear();
 
         $response = new Response();
@@ -502,5 +502,32 @@ class AuthorizationTest extends TestCase
         $this->assertInstanceOf(Response::class, $result);
         $linkHeader = $result->getHeaderLine('Link');
         $this->assertStringContainsString('rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader with optional parameters delegates to service
+     */
+    public function testAddDiscoveryHeaderWithOptionalParametersDelegatesToService(): void
+    {
+        Configure::write('Mercure.public_url', 'https://mercure.example.com/.well-known/mercure');
+        Authorization::clear();
+
+        $response = new Response();
+        $result = Authorization::addDiscoveryHeader(
+            response: $response,
+            selfUrl: '/books/123',
+            lastEventId: 'urn:uuid:abc-123',
+            contentType: 'application/ld+json',
+            keySet: 'https://example.com/keys.json',
+        );
+
+        // Just verify the facade properly passes parameters through
+        // Detailed behavior is tested in AuthorizationServiceTest
+        $linkHeaders = $result->getHeader('Link');
+        $this->assertCount(2, $linkHeaders);
+        $this->assertContains('</books/123>; rel="self"', $linkHeaders);
+
+        $mercureHeader = array_filter($linkHeaders, fn(string $h): bool => str_contains($h, 'rel="mercure"'));
+        $this->assertNotEmpty($mercureHeader);
     }
 }

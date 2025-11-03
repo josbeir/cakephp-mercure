@@ -352,7 +352,7 @@ class AuthorizationServiceTest extends TestCase
      */
     public function testAddDiscoveryHeaderFallsBackToUrl(): void
     {
-        Configure::write('Mercure.public_url', null);
+        Configure::write('Mercure.public_url');
 
         $response = new Response();
         $result = $this->service->addDiscoveryHeader($response);
@@ -682,7 +682,7 @@ class AuthorizationServiceTest extends TestCase
     public function testAddDiscoveryHeaderAddsHeaderWhenRequestIsNull(): void
     {
         $response = new Response();
-        $result = $this->service->addDiscoveryHeader($response, null);
+        $result = $this->service->addDiscoveryHeader($response);
 
         // Should have Link header (no preflight check)
         $linkHeader = $result->getHeaderLine('Link');
@@ -703,5 +703,235 @@ class AuthorizationServiceTest extends TestCase
         $linkHeader = $result->getHeaderLine('Link');
         $this->assertNotEmpty($linkHeader);
         $this->assertStringContainsString('rel="mercure"', $linkHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader with rel="self" canonical topic URL
+     */
+    public function testAddDiscoveryHeaderWithSelfUrl(): void
+    {
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader(
+            response: $response,
+            selfUrl: '/books/123',
+        );
+
+        $linkHeaders = $result->getHeader('Link');
+        $this->assertCount(2, $linkHeaders);
+
+        // Check rel="self" header
+        $this->assertContains('</books/123>; rel="self"', $linkHeaders);
+
+        // Check rel="mercure" header
+        $this->assertContains(
+            '<https://public.mercure.example.com/.well-known/mercure>; rel="mercure"',
+            $linkHeaders,
+        );
+    }
+
+    /**
+     * Test addDiscoveryHeader with last-event-id attribute
+     */
+    public function testAddDiscoveryHeaderWithLastEventId(): void
+    {
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader(
+            response: $response,
+            lastEventId: 'urn:uuid:abc-123',
+        );
+
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+        $this->assertStringContainsString('last-event-id="urn:uuid:abc-123"', $linkHeader);
+        $this->assertEquals(
+            '<https://public.mercure.example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:abc-123"',
+            $linkHeader,
+        );
+    }
+
+    /**
+     * Test addDiscoveryHeader with content-type attribute
+     */
+    public function testAddDiscoveryHeaderWithContentType(): void
+    {
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader(
+            response: $response,
+            contentType: 'application/merge-patch+json',
+        );
+
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+        $this->assertStringContainsString('content-type="application/merge-patch+json"', $linkHeader);
+        $this->assertEquals(
+            '<https://public.mercure.example.com/.well-known/mercure>; rel="mercure"; content-type="application/merge-patch+json"',
+            $linkHeader,
+        );
+    }
+
+    /**
+     * Test addDiscoveryHeader with key-set attribute
+     */
+    public function testAddDiscoveryHeaderWithKeySet(): void
+    {
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader(
+            response: $response,
+            keySet: 'https://example.com/.well-known/jwks.json',
+        );
+
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+        $this->assertStringContainsString('key-set="https://example.com/.well-known/jwks.json"', $linkHeader);
+        $this->assertEquals(
+            '<https://public.mercure.example.com/.well-known/mercure>; rel="mercure"; key-set="https://example.com/.well-known/jwks.json"',
+            $linkHeader,
+        );
+    }
+
+    /**
+     * Test addDiscoveryHeader with multiple attributes
+     */
+    public function testAddDiscoveryHeaderWithMultipleAttributes(): void
+    {
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader(
+            response: $response,
+            lastEventId: 'urn:uuid:abc-123',
+            contentType: 'application/merge-patch+json',
+            keySet: 'https://example.com/.well-known/jwks.json',
+        );
+
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertStringContainsString('rel="mercure"', $linkHeader);
+        $this->assertStringContainsString('last-event-id="urn:uuid:abc-123"', $linkHeader);
+        $this->assertStringContainsString('content-type="application/merge-patch+json"', $linkHeader);
+        $this->assertStringContainsString('key-set="https://example.com/.well-known/jwks.json"', $linkHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader with all parameters including self URL
+     */
+    public function testAddDiscoveryHeaderWithAllParameters(): void
+    {
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader(
+            response: $response,
+            selfUrl: '/books/123.jsonld',
+            lastEventId: 'urn:uuid:event-456',
+            contentType: 'application/ld+json',
+            keySet: 'https://example.com/keys.json',
+        );
+
+        $linkHeaders = $result->getHeader('Link');
+        $this->assertCount(2, $linkHeaders);
+
+        // Check rel="self" header
+        $this->assertContains('</books/123.jsonld>; rel="self"', $linkHeaders);
+
+        // Check rel="mercure" header with all attributes
+        $mercureHeader = null;
+        foreach ($linkHeaders as $header) {
+            if (str_contains($header, 'rel="mercure"')) {
+                $mercureHeader = $header;
+                break;
+            }
+        }
+
+        $this->assertNotNull($mercureHeader);
+        $this->assertStringContainsString('last-event-id="urn:uuid:event-456"', $mercureHeader);
+        $this->assertStringContainsString('content-type="application/ld+json"', $mercureHeader);
+        $this->assertStringContainsString('key-set="https://example.com/keys.json"', $mercureHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader with content negotiation example
+     */
+    public function testAddDiscoveryHeaderContentNegotiation(): void
+    {
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader(
+            response: $response,
+            selfUrl: '/books/foo.jsonld',
+            contentType: 'application/ld+json',
+        );
+
+        $linkHeaders = $result->getHeader('Link');
+        $this->assertCount(2, $linkHeaders);
+
+        // This mirrors the spec example for content negotiation
+        $this->assertContains('</books/foo.jsonld>; rel="self"', $linkHeaders);
+
+        $mercureHeader = null;
+        foreach ($linkHeaders as $header) {
+            if (str_contains($header, 'rel="mercure"')) {
+                $mercureHeader = $header;
+                break;
+            }
+        }
+
+        $this->assertNotNull($mercureHeader);
+        $this->assertStringContainsString('content-type="application/ld+json"', $mercureHeader);
+    }
+
+    /**
+     * Test addDiscoveryHeader backward compatibility - no optional params
+     */
+    public function testAddDiscoveryHeaderBackwardCompatibility(): void
+    {
+        $response = new Response();
+
+        // Call with no optional parameters (old behavior)
+        $result = $this->service->addDiscoveryHeader($response);
+
+        $linkHeader = $result->getHeaderLine('Link');
+        $this->assertEquals(
+            '<https://public.mercure.example.com/.well-known/mercure>; rel="mercure"',
+            $linkHeader,
+        );
+    }
+
+    /**
+     * Test addDiscoveryHeader preserves existing Link headers with new parameters
+     */
+    public function testAddDiscoveryHeaderPreservesExistingWithNewParameters(): void
+    {
+        $response = new Response();
+        $response = $response->withAddedHeader('Link', '<https://example.com/stylesheet.css>; rel="stylesheet"');
+
+        $result = $this->service->addDiscoveryHeader(
+            response: $response,
+            selfUrl: '/resource/1',
+            lastEventId: 'urn:uuid:test',
+        );
+
+        $linkHeaders = $result->getHeader('Link');
+        $this->assertCount(3, $linkHeaders);
+        $this->assertContains('<https://example.com/stylesheet.css>; rel="stylesheet"', $linkHeaders);
+        $this->assertContains('</resource/1>; rel="self"', $linkHeaders);
+    }
+
+    /**
+     * Test addDiscoveryHeader skips preflight even with optional parameters
+     */
+    public function testAddDiscoveryHeaderSkipsPreflightWithParameters(): void
+    {
+        $request = new ServerRequest([
+            'environment' => [
+                'REQUEST_METHOD' => 'OPTIONS',
+                'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
+            ],
+        ]);
+
+        $response = new Response();
+        $result = $this->service->addDiscoveryHeader(
+            response: $response,
+            request: $request,
+            selfUrl: '/books/1',
+            lastEventId: 'urn:uuid:test',
+        );
+
+        // Should not add any Link headers for preflight
+        $this->assertEmpty($result->getHeaderLine('Link'));
     }
 }

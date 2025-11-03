@@ -144,7 +144,7 @@ class MercureHelperTest extends TestCase
     public function testUrlFallsBackToUrlWhenPublicUrlNotSet(): void
     {
         Configure::write('Mercure.url', 'http://localhost:3000/.well-known/mercure');
-        Configure::write('Mercure.public_url', null);
+        Configure::write('Mercure.public_url');
 
         $url = $this->helper->url();
         $this->assertEquals('http://localhost:3000/.well-known/mercure', $url);
@@ -221,7 +221,7 @@ class MercureHelperTest extends TestCase
      */
     public function testUrlWithNullTopics(): void
     {
-        $url = $this->helper->url(null);
+        $url = $this->helper->url();
         $this->assertEquals('https://mercure.example.com/.well-known/mercure', $url);
     }
 

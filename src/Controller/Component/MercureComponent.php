@@ -6,6 +6,8 @@ namespace Mercure\Controller\Component;
 use Cake\Controller\Component;
 use Cake\Event\EventInterface;
 use Mercure\Authorization;
+use Mercure\Internal\ConfigurationHelper;
+use Mercure\Internal\SubscriptionUrlBuilder;
 use Mercure\Publisher;
 use Mercure\Service\AuthorizationInterface;
 use Mercure\Service\PublisherInterface;
@@ -88,8 +90,9 @@ use Mercure\Update\ViewUpdate;
  * Configuration:
  * ```
  * $this->loadComponent('Mercure.Mercure', [
- *     'autoDiscover' => true,     // Automatically add discovery headers
- *     'defaultTopics' => [        // Topics automatically available in all views
+ *     'autoDiscover' => true,        // Automatically add discovery headers
+ *     'discoverWithTopics' => true,  // Include subscribe topics in discovery rel="self" link
+ *     'defaultTopics' => [           // Topics automatically available in all views
  *         '/notifications',
  *         '/global/alerts'
  *     ]
@@ -112,6 +115,13 @@ class MercureComponent extends Component
     protected array $subscribe = [];
 
     /**
+     * Last authorized subscribe topics (preserved for discovery)
+     *
+     * @var array<string>
+     */
+    protected array $lastAuthorizedTopics = [];
+
+    /**
      * Additional JWT claims accumulated via addSubscribe()
      *
      * @var array<string, mixed>
@@ -125,6 +135,7 @@ class MercureComponent extends Component
      */
     protected array $_defaultConfig = [
         'autoDiscover' => false,
+        'discoverWithTopics' => false,
         'defaultTopics' => [],
     ];
 
@@ -335,6 +346,9 @@ class MercureComponent extends Component
         $response = $this->authorizationService->setCookie($response, $allSubscribe, $allClaims);
         $this->getController()->setResponse($response);
 
+        // Store topics for potential use in discovery
+        $this->lastAuthorizedTopics = $allSubscribe;
+
         // Reset accumulated state after authorization
         $this->resetSubscribe();
         $this->resetAdditionalClaims();
@@ -366,27 +380,75 @@ class MercureComponent extends Component
     }
 
     /**
-     * Add the Mercure discovery header to the response
+     * Add Mercure discovery headers to the response
      *
-     * Adds a Link header with rel="mercure" to advertise the Mercure hub URL.
-     * This allows clients to automatically discover the hub endpoint.
+     * Adds Link headers for Mercure hub discovery. Optionally includes
+     * a rel="self" link with subscription topics from the subscribe array.
      *
-     * Example:
+     * Priority for includeTopics parameter:
+     * 1. Explicit method parameter (true/false)
+     * 2. Component config 'discoverWithTopics'
+     * 3. Default: false
+     *
+     * Examples:
      * ```
+     * // Basic discovery
      * $this->Mercure->discover();
      *
-     * // Or chained with authorize
-     * $this->Mercure->authorize(['/feeds/123'])->discover();
+     * // With topics from subscribe array
+     * $this->Mercure
+     *     ->addSubscribe('/books/123')
+     *     ->authorize()
+     *     ->discover(includeTopics: true);
+     *
+     * // With all discovery parameters
+     * $this->Mercure->discover(
+     *     includeTopics: true,
+     *     lastEventId: 'urn:uuid:abc-123',
+     *     contentType: 'application/ld+json',
+     *     keySet: 'https://example.com/.well-known/jwks.json'
+     * );
+     *
+     * // Use config value (discoverWithTopics)
+     * $this->Mercure->discover(); // Uses config setting
      * ```
      *
+     * @param bool|null $includeTopics Include subscribe topics in rel="self" link (null uses config)
+     * @param string|null $lastEventId Last event ID for state reconciliation
+     * @param string|null $contentType Content type hint for updates
+     * @param string|null $keySet URL to JWK key set for encryption
      * @return $this For method chaining
      * @throws \Mercure\Exception\MercureException
      */
-    public function discover(): static
-    {
+    public function discover(
+        ?bool $includeTopics = null,
+        ?string $lastEventId = null,
+        ?string $contentType = null,
+        ?string $keySet = null,
+    ): static {
         $request = $this->getController()->getRequest();
         $response = $this->getController()->getResponse();
-        $response = $this->authorizationService->addDiscoveryHeader($response, $request);
+
+        // Determine if we should include topics
+        // Priority: method param > config > default (false)
+        $shouldIncludeTopics = $includeTopics ?? $this->getConfig('discoverWithTopics', false);
+
+        // Build selfUrl if topics should be included and we have authorized topics
+        $selfUrl = null;
+        if ($shouldIncludeTopics && $this->lastAuthorizedTopics !== []) {
+            $hubUrl = ConfigurationHelper::getPublicUrl();
+            $selfUrl = SubscriptionUrlBuilder::build($hubUrl, $this->lastAuthorizedTopics);
+        }
+
+        $response = $this->authorizationService->addDiscoveryHeader(
+            $response,
+            $request,
+            $selfUrl,
+            $lastEventId,
+            $contentType,
+            $keySet,
+        );
+
         $this->getController()->setResponse($response);
 
         return $this;

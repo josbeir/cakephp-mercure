@@ -4,12 +4,14 @@ declare(strict_types=1);
 namespace Mercure\Test\TestCase\Internal;
 
 use Cake\TestSuite\TestCase;
-use Mercure\Internal\QueryBuilder;
+use Mercure\Internal\PublishQueryBuilder;
 
 /**
- * QueryBuilder Test
+ * PublishQueryBuilder Test Case
+ *
+ * Tests the PublishQueryBuilder utility for building query strings for publish requests.
  */
-class QueryBuilderTest extends TestCase
+class PublishQueryBuilderTest extends TestCase
 {
     /**
      * Test build with simple key-value pairs
@@ -21,7 +23,7 @@ class QueryBuilderTest extends TestCase
             'key2' => 'value2',
         ];
 
-        $result = QueryBuilder::build($data);
+        $result = PublishQueryBuilder::build($data);
 
         $this->assertSame('key1=value1&key2=value2', $result);
     }
@@ -36,7 +38,7 @@ class QueryBuilderTest extends TestCase
             'data' => 'test data',
         ];
 
-        $result = QueryBuilder::build($data);
+        $result = PublishQueryBuilder::build($data);
 
         $this->assertSame('topic=%2Ftopic1&topic=%2Ftopic2&topic=%2Ftopic3&data=test+data', $result);
     }
@@ -52,7 +54,7 @@ class QueryBuilderTest extends TestCase
             'key3' => 'value3',
         ];
 
-        $result = QueryBuilder::build($data);
+        $result = PublishQueryBuilder::build($data);
 
         $this->assertSame('key1=value1&key3=value3', $result);
     }
@@ -66,7 +68,7 @@ class QueryBuilderTest extends TestCase
             'data' => 'hello world & special chars!',
         ];
 
-        $result = QueryBuilder::build($data);
+        $result = PublishQueryBuilder::build($data);
 
         $this->assertSame('data=hello+world+%26+special+chars%21', $result);
     }
@@ -76,7 +78,7 @@ class QueryBuilderTest extends TestCase
      */
     public function testBuildWithEmptyArray(): void
     {
-        $result = QueryBuilder::build([]);
+        $result = PublishQueryBuilder::build([]);
 
         $this->assertSame('', $result);
     }
@@ -91,7 +93,7 @@ class QueryBuilderTest extends TestCase
             'count' => 42,
         ];
 
-        $result = QueryBuilder::build($data);
+        $result = PublishQueryBuilder::build($data);
 
         $this->assertSame('retry=5000&count=42', $result);
     }
@@ -106,7 +108,7 @@ class QueryBuilderTest extends TestCase
             'public' => 'off',
         ];
 
-        $result = QueryBuilder::build($data);
+        $result = PublishQueryBuilder::build($data);
 
         $this->assertSame('private=on&public=off', $result);
     }
@@ -124,7 +126,7 @@ class QueryBuilderTest extends TestCase
             'retry' => 5000,
         ];
 
-        $result = QueryBuilder::build($data);
+        $result = PublishQueryBuilder::build($data);
 
         $this->assertStringContainsString('topic=%2Ffeed%2F1', $result);
         $this->assertStringContainsString('topic=%2Ffeed%2F2', $result);
@@ -143,7 +145,7 @@ class QueryBuilderTest extends TestCase
             'topic' => ['/company/123/feeds', '/global/notifications'],
         ];
 
-        $result = QueryBuilder::build($data);
+        $result = PublishQueryBuilder::build($data);
 
         $this->assertSame('topic=%2Fcompany%2F123%2Ffeeds&topic=%2Fglobal%2Fnotifications', $result);
     }
@@ -157,7 +159,7 @@ class QueryBuilderTest extends TestCase
             'data' => json_encode(['feed_id' => 123, 'status' => 'completed', 'progress' => 100]),
         ];
 
-        $result = QueryBuilder::build($data);
+        $result = PublishQueryBuilder::build($data);
 
         // Verify it's properly encoded and can be decoded back
         parse_str($result, $parsed);
@@ -181,7 +183,7 @@ class QueryBuilderTest extends TestCase
             'third' => 'value3',
         ];
 
-        $result = QueryBuilder::build($data);
+        $result = PublishQueryBuilder::build($data);
 
         $this->assertSame('first=value1&second=value2&third=value3', $result);
     }
@@ -196,7 +198,7 @@ class QueryBuilderTest extends TestCase
             'key2' => 'value',
         ];
 
-        $result = QueryBuilder::build($data);
+        $result = PublishQueryBuilder::build($data);
 
         $this->assertSame('key1=&key2=value', $result);
     }
@@ -212,7 +214,7 @@ class QueryBuilderTest extends TestCase
             'key3' => null,
         ];
 
-        $result = QueryBuilder::build($data);
+        $result = PublishQueryBuilder::build($data);
 
         $this->assertSame('', $result);
     }

@@ -5,6 +5,7 @@ namespace Mercure\View\Helper;
 
 use Cake\View\Helper;
 use Mercure\Internal\ConfigurationHelper;
+use Mercure\Internal\SubscriptionUrlBuilder;
 use Mercure\TopicManagementTrait;
 
 /**
@@ -124,43 +125,6 @@ class MercureHelper extends Helper
             return $hubUrl;
         }
 
-        return $this->buildSubscriptionUrl($hubUrl, $topics, []);
-    }
-
-    /**
-     * Build a subscription URL with topics and options
-     *
-     * @param string $hubUrl Base hub URL
-     * @param array<string> $topics Topics to subscribe to
-     * @param array<string, mixed> $options Additional query parameters
-     * @return string Complete subscription URL
-     */
-    private function buildSubscriptionUrl(string $hubUrl, array $topics, array $options): string
-    {
-        $params = [];
-
-        // Add topic parameters (can be specified multiple times)
-        foreach ($topics as $topic) {
-            $params[] = 'topic=' . urlencode($topic);
-        }
-
-        // Add additional options
-        foreach ($options as $key => $value) {
-            if (is_array($value)) {
-                foreach ($value as $item) {
-                    $params[] = urlencode($key) . '=' . urlencode((string)$item);
-                }
-            } else {
-                $params[] = urlencode($key) . '=' . urlencode((string)$value);
-            }
-        }
-
-        if ($params === []) {
-            return $hubUrl;
-        }
-
-        $separator = str_contains($hubUrl, '?') ? '&' : '?';
-
-        return $hubUrl . $separator . implode('&', $params);
+        return SubscriptionUrlBuilder::build($hubUrl, $topics);
     }
 }

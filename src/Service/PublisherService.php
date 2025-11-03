@@ -6,7 +6,7 @@ namespace Mercure\Service;
 use Cake\Http\Client;
 use Exception;
 use Mercure\Exception\MercureException;
-use Mercure\Internal\QueryBuilder;
+use Mercure\Internal\PublishQueryBuilder;
 use Mercure\Jwt\TokenProviderInterface;
 use Mercure\Update\Update;
 
@@ -54,7 +54,7 @@ class PublisherService implements PublisherInterface
             $this->validateJwt($jwt);
 
             $postData = $this->buildPostData($update);
-            $postDataQuery = QueryBuilder::build($postData);
+            $postDataQuery = PublishQueryBuilder::build($postData);
 
             $response = $this->httpClient->post($this->hubUrl, $postDataQuery, [
                 'headers' => [
@@ -88,7 +88,7 @@ class PublisherService implements PublisherInterface
     /**
      * Build POST data from update
      *
-     * Prepares data array for QueryBuilder to encode.
+     * Prepares data array for PublishQueryBuilder to encode.
      * Topics can be provided multiple times for multiple subscriptions.
      *
      * @param \Mercure\Update\Update $update The update object

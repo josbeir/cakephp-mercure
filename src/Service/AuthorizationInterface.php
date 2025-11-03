@@ -50,17 +50,34 @@ interface AuthorizationInterface
     public function getCookieName(): string;
 
     /**
-     * Add the Mercure discovery header to the response
+     * Add the Mercure discovery headers to the response
      *
-     * Adds a Link header with rel="mercure" to advertise the Mercure hub URL.
-     * This allows clients to discover the hub endpoint automatically.
+     * Adds Link headers for Mercure discovery according to the Mercure specification:
+     * - rel="mercure": The hub URL for subscriptions (required)
+     * - rel="self": The canonical topic URL for this resource (optional)
+     *
+     * The rel="mercure" link may include optional attributes:
+     * - last-event-id: The last event ID for reconciliation
+     * - content-type: Content type hint for updates (e.g., for partial updates)
+     * - key-set: URL to JWK key set for encrypted updates
      *
      * Skips CORS preflight requests to prevent conflicts with CORS middleware.
      *
      * @param \Cake\Http\Response $response The response object to modify
      * @param \Cake\Http\ServerRequest|null $request Optional request to check for preflight
-     * @return \Cake\Http\Response Modified response with discovery header
+     * @param string|null $selfUrl Canonical topic URL for rel="self" link
+     * @param string|null $lastEventId Last event ID for state reconciliation
+     * @param string|null $contentType Content type of updates
+     * @param string|null $keySet URL to JWK key set for encryption
+     * @return \Cake\Http\Response Modified response with discovery headers
      * @throws \Mercure\Exception\MercureException
      */
-    public function addDiscoveryHeader(Response $response, ?ServerRequest $request = null): Response;
+    public function addDiscoveryHeader(
+        Response $response,
+        ?ServerRequest $request = null,
+        ?string $selfUrl = null,
+        ?string $lastEventId = null,
+        ?string $contentType = null,
+        ?string $keySet = null,
+    ): Response;
 }

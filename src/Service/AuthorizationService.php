@@ -207,29 +207,66 @@ class AuthorizationService implements AuthorizationInterface
     }
 
     /**
-     * Add the Mercure discovery header to the response
+     * Add the Mercure discovery headers to the response
      *
-     * Adds a Link header with rel="mercure" to advertise the Mercure hub URL.
-     * This allows clients to discover the hub endpoint automatically.
+     * Adds Link headers for Mercure discovery according to the Mercure specification:
+     * - rel="mercure": The hub URL for subscriptions (required)
+     * - rel="self": The canonical topic URL for this resource (optional)
+     *
+     * The rel="mercure" link may include optional attributes:
+     * - last-event-id: The last event ID for reconciliation
+     * - content-type: Content type hint for updates (e.g., for partial updates)
+     * - key-set: URL to JWK key set for encrypted updates
      *
      * Skips CORS preflight requests to prevent conflicts with CORS middleware.
      *
      * @param \Cake\Http\Response $response The response object to modify
      * @param \Cake\Http\ServerRequest|null $request Optional request to check for preflight
-     * @return \Cake\Http\Response Modified response with discovery header
+     * @param string|null $selfUrl Canonical topic URL for rel="self" link
+     * @param string|null $lastEventId Last event ID for state reconciliation
+     * @param string|null $contentType Content type of updates
+     * @param string|null $keySet URL to JWK key set for encryption
+     * @return \Cake\Http\Response Modified response with discovery headers
      * @throws \Mercure\Exception\MercureException
      */
-    public function addDiscoveryHeader(Response $response, ?ServerRequest $request = null): Response
-    {
+    public function addDiscoveryHeader(
+        Response $response,
+        ?ServerRequest $request = null,
+        ?string $selfUrl = null,
+        ?string $lastEventId = null,
+        ?string $contentType = null,
+        ?string $keySet = null,
+    ): Response {
         // Skip preflight requests to prevent CORS issues
         if ($request instanceof ServerRequest && $this->isPreflightRequest($request)) {
             return $response;
         }
 
-        $hubUrl = $this->getPublicUrl();
-        $linkHeader = sprintf('<%s>; rel="mercure"', $hubUrl);
+        // Add rel="self" link if provided
+        if ($selfUrl !== null) {
+            $selfLinkHeader = $this->buildLinkHeader($selfUrl, 'self');
+            $response = $response->withAddedHeader('Link', $selfLinkHeader);
+        }
 
-        return $response->withAddedHeader('Link', $linkHeader);
+        // Build rel="mercure" link with optional attributes
+        $hubUrl = $this->getPublicUrl();
+        $attributes = [];
+
+        if ($lastEventId !== null) {
+            $attributes['last-event-id'] = $lastEventId;
+        }
+
+        if ($contentType !== null) {
+            $attributes['content-type'] = $contentType;
+        }
+
+        if ($keySet !== null) {
+            $attributes['key-set'] = $keySet;
+        }
+
+        $mercureLinkHeader = $this->buildLinkHeader($hubUrl, 'mercure', $attributes);
+
+        return $response->withAddedHeader('Link', $mercureLinkHeader);
     }
 
     /**
@@ -259,5 +296,27 @@ class AuthorizationService implements AuthorizationInterface
     private function getPublicUrl(): string
     {
         return ConfigurationHelper::getPublicUrl();
+    }
+
+    /**
+     * Build a Link header value according to RFC5988
+     *
+     * Constructs a Link header with the given URL, relation type, and optional attributes.
+     *
+     * @param string $url The URL for the link
+     * @param string $rel The relation type (e.g., "mercure", "self")
+     * @param array<string, string> $attributes Optional link attributes
+     * @return string Formatted Link header value
+     */
+    private function buildLinkHeader(string $url, string $rel, array $attributes = []): string
+    {
+        $parts = [sprintf('<%s>', $url)];
+        $parts[] = sprintf('rel="%s"', $rel);
+
+        foreach ($attributes as $name => $value) {
+            $parts[] = sprintf('%s="%s"', $name, $value);
+        }
+
+        return implode('; ', $parts);
     }
 }
