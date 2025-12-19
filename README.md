@@ -17,6 +17,7 @@ Push real-time updates to clients using the Mercure protocol.
 - [Installation](#installation)
   - [Installing the Plugin](#installing-the-plugin)
   - [Running a Mercure Hub](#running-a-mercure-hub)
+  - [Custom DDEV Setup with Nginx Proxy](#custom-ddev-setup-with-nginx-proxy)
 - [Configuration](#configuration)
 - [Basic Usage](#basic-usage)
   - [Choosing Your Authorization Strategy](#choosing-your-authorization-strategy)
@@ -47,6 +48,11 @@ Push real-time updates to clients using the Mercure protocol.
   - [JsonUpdate](#jsonupdate)
   - [ViewUpdate](#viewupdate)
   - [MercureDiscoveryMiddleware](#mercurediscoverymiddleware)
+- [Cookbook: Queue Job Progress Tracking](#cookbook-queue-job-progress-tracking)
+  - [Creating a Progress Trait](#creating-a-progress-trait)
+  - [Using the Trait in Queue Tasks](#using-the-trait-in-queue-tasks)
+  - [Frontend: Real-time Progress Display](#frontend-real-time-progress-display)
+  - [Controller for Triggering Jobs](#controller-for-triggering-jobs)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -124,6 +130,75 @@ ddev get Rindula/ddev-mercure
 For more information, see the [DDEV Mercure add-on](https://addons.ddev.com/addons/Rindula/ddev-mercure).
 
 The hub will be available at `http://localhost:3000/.well-known/mercure`.
+
+### Custom DDEV Setup with Nginx Proxy
+
+For environments with dynamic ports (like DDEV), you can set up a custom Mercure container with an nginx proxy. This allows using relative URLs that work regardless of the port.
+
+Create `.ddev/docker-compose.mercure.yaml`:
+
+```yaml
+services:
+  mercure:
+    image: dunglas/mercure
+    container_name: ddev-${DDEV_SITENAME}-mercure
+    restart: "no"
+    expose:
+      - "80"
+    environment:
+      SERVER_NAME: ':80'
+      MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+      MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+      MERCURE_EXTRA_DIRECTIVES: |
+        anonymous
+        cors_origins *
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: ${DDEV_APPROOT}
+
+  web:
+    environment:
+      - MERCURE_URL=http://mercure/.well-known/mercure
+      - MERCURE_PUBLIC_URL=/mercure-hub
+      - MERCURE_JWT_SECRET=!ChangeThisMercureHubJWTSecretKey!
+```
+
+Create `.ddev/nginx/mercure.conf`:
+
+```nginx
+location /mercure-hub {
+    rewrite ^/mercure-hub(.*)$ /.well-known/mercure$1 break;
+    proxy_pass http://mercure:80;
+    proxy_http_version 1.1;
+    proxy_set_header Connection '';
+    proxy_set_header Cache-Control 'no-cache';
+    proxy_set_header X-Accel-Buffering 'no';
+    proxy_buffering off;
+    chunked_transfer_encoding off;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 24h;
+    proxy_connect_timeout 1h;
+}
+```
+
+Then configure relative URLs in `config/app_custom.php`:
+
+```php
+'Mercure' => [
+    'url' => env('MERCURE_URL', 'http://mercure/.well-known/mercure'),
+    'public_url' => env('MERCURE_PUBLIC_URL', '/mercure-hub'),
+    'jwt' => [
+        'secret' => env('MERCURE_JWT_SECRET', '!ChangeThisMercureHubJWTSecretKey!'),
+        'algorithm' => 'HS256',
+        'publish' => ['*'],
+    ],
+],
+```
+
+Run `ddev restart` to apply the changes. Using a relative `public_url` like `/mercure-hub` means the browser will automatically use the current origin, making it work regardless of DDEV's dynamic port assignment.
 
 > [!TIP]
 > **Using FrankenPHP?** You're good to go! FrankenPHP has Mercure built in—no separate hub needed. See the [FrankenPHP Mercure documentation](https://frankenphp.dev/docs/mercure/) for details.
@@ -1266,6 +1341,285 @@ This allows clients to automatically discover the Mercure hub URL without hardco
 ---
 
 For more information about the Mercure protocol, visit [mercure.rocks](https://mercure.rocks/).
+
+## Cookbook: Queue Job Progress Tracking
+
+A common use case for Mercure is providing real-time progress updates for background queue jobs. This cookbook shows how to integrate Mercure with [dereuromark/cakephp-queue](https://github.com/dereuromark/cakephp-queue) to display live progress bars and status updates.
+
+### Creating a Progress Trait
+
+First, create a reusable trait for publishing progress updates from queue tasks:
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Queue\Task;
+
+use Cake\Log\Log;
+use Mercure\Publisher;
+use Mercure\Update\JsonUpdate;
+use Throwable;
+
+/**
+ * Trait for publishing real-time updates from queue tasks via Mercure.
+ */
+trait MercureProgressTrait
+{
+    protected string $mercureTopicPrefix = '/queue/job';
+
+    /**
+     * Publish a progress update for a queue job.
+     */
+    protected function publishProgress(int $jobId, string $status, array $data = []): void
+    {
+        try {
+            $topic = sprintf('%s/%d', $this->mercureTopicPrefix, $jobId);
+            $payload = array_merge(['status' => $status], $data);
+
+            Publisher::publish(JsonUpdate::create(
+                topics: $topic,
+                data: $payload,
+            ));
+        } catch (Throwable $e) {
+            // Log but don't fail the job if Mercure is unavailable
+            Log::write('warning', sprintf(
+                'Failed to publish Mercure update for job `%d`: %s',
+                $jobId,
+                $e->getMessage(),
+            ));
+        }
+    }
+
+    /**
+     * Publish a "started" status update.
+     */
+    protected function publishStarted(int $jobId, string $message = '', array $data = []): void
+    {
+        $payload = $data;
+        if ($message) {
+            $payload['message'] = $message;
+        }
+        $this->publishProgress($jobId, 'started', $payload);
+    }
+
+    /**
+     * Publish a progress update with percentage.
+     */
+    protected function publishProgressPercent(int $jobId, int $current, int $total, array $data = []): void
+    {
+        $percent = $total > 0 ? round(($current / $total) * 100, 1) : 0;
+        $payload = array_merge([
+            'current' => $current,
+            'total' => $total,
+            'percent' => $percent,
+        ], $data);
+
+        $this->publishProgress($jobId, 'progress', $payload);
+    }
+
+    /**
+     * Publish a "completed" status update.
+     */
+    protected function publishCompleted(int $jobId, string $message = '', array $data = []): void
+    {
+        $payload = $data;
+        if ($message) {
+            $payload['message'] = $message;
+        }
+        $this->publishProgress($jobId, 'completed', $payload);
+    }
+
+    /**
+     * Publish a "failed" status update.
+     */
+    protected function publishFailed(int $jobId, string $error, array $data = []): void
+    {
+        $payload = array_merge(['error' => $error], $data);
+        $this->publishProgress($jobId, 'failed', $payload);
+    }
+}
+```
+
+### Using the Trait in Queue Tasks
+
+Use the trait in your queue task classes:
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Queue\Task;
+
+use Queue\Queue\Task;
+
+class ImportProductsTask extends Task
+{
+    use MercureProgressTrait;
+
+    public function run(array $data, int $jobId): void
+    {
+        $this->publishStarted($jobId, 'Starting product import...');
+
+        $products = $this->fetchProducts($data['source']);
+        $total = count($products);
+        $saved = 0;
+
+        foreach ($products as $index => $product) {
+            $this->saveProduct($product);
+            $saved++;
+
+            // Publish progress every 10 items to avoid flooding
+            if ($index % 10 === 0) {
+                $this->publishProgressPercent($jobId, $index + 1, $total, [
+                    'message' => sprintf('Processing %d of %d products...', $index + 1, $total),
+                    'saved' => $saved,
+                ]);
+            }
+        }
+
+        $this->publishCompleted($jobId, sprintf('Imported %d products', $saved), [
+            'total' => $total,
+            'saved' => $saved,
+        ]);
+    }
+}
+```
+
+### Frontend: Real-time Progress Display
+
+Create a template that subscribes to job updates and displays progress:
+
+```php
+<?php
+// templates/Admin/Jobs/monitor.php
+$this->loadHelper('Mercure.Mercure');
+?>
+<div class="job-monitor">
+    <h2>Job Progress</h2>
+    <div id="job-<?= $jobId ?>" class="job-card">
+        <div class="job-header">
+            <strong><?= h($jobTask) ?></strong>
+            <span class="badge" id="status-badge">Pending</span>
+        </div>
+        <div class="progress">
+            <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+        </div>
+        <div id="job-message" class="message">Waiting for updates...</div>
+        <div id="job-stats" class="stats"></div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const jobId = <?= $jobId ?>;
+    const topic = `/queue/job/${jobId}`;
+
+    // Use the Mercure helper to get the hub URL
+    // For relative URLs, combine with current origin
+    const hubUrl = '<?= $this->Mercure->url() ?>';
+    const url = new URL(hubUrl, window.location.origin);
+    url.searchParams.append('topic', topic);
+
+    const eventSource = new EventSource(url.toString());
+
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        updateJobDisplay(data);
+    };
+
+    eventSource.onerror = function() {
+        console.error('EventSource connection error');
+    };
+
+    function updateJobDisplay(data) {
+        const statusBadge = document.getElementById('status-badge');
+        const progressBar = document.getElementById('progress-bar');
+        const message = document.getElementById('job-message');
+        const stats = document.getElementById('job-stats');
+
+        // Update status badge
+        statusBadge.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+        statusBadge.className = 'badge badge-' + getStatusColor(data.status);
+
+        // Update progress bar
+        if (data.percent !== undefined) {
+            progressBar.style.width = data.percent + '%';
+        }
+
+        // Update message
+        if (data.message) {
+            message.textContent = data.message;
+        }
+
+        // Update stats
+        let statsHtml = '';
+        if (data.current !== undefined) statsHtml += `<span>Current: ${data.current}</span> `;
+        if (data.total !== undefined) statsHtml += `<span>Total: ${data.total}</span> `;
+        if (data.saved !== undefined) statsHtml += `<span>Saved: ${data.saved}</span> `;
+        if (statsHtml) stats.innerHTML = statsHtml;
+
+        // Close connection on completion or failure
+        if (data.status === 'completed' || data.status === 'failed') {
+            progressBar.style.width = '100%';
+            eventSource.close();
+        }
+    }
+
+    function getStatusColor(status) {
+        switch (status) {
+            case 'started': return 'info';
+            case 'progress': return 'warning';
+            case 'completed': return 'success';
+            case 'failed': return 'danger';
+            default: return 'secondary';
+        }
+    }
+});
+</script>
+```
+
+### Controller for Triggering Jobs
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Controller\Admin;
+
+use App\Controller\AppController;
+use Queue\Model\Table\QueuedJobsTable;
+
+class JobsController extends AppController
+{
+    public function monitor(int $id)
+    {
+        $job = $this->fetchTable('Queue.QueuedJobs')->get($id);
+
+        $this->set([
+            'jobId' => $job->id,
+            'jobTask' => $job->job_task,
+        ]);
+    }
+
+    public function trigger()
+    {
+        /** @var QueuedJobsTable $queuedJobsTable */
+        $queuedJobsTable = $this->fetchTable('Queue.QueuedJobs');
+
+        $job = $queuedJobsTable->createJob(
+            'ImportProducts',
+            ['source' => 'api'],
+        );
+
+        // Redirect to monitor page with job ID
+        return $this->redirect(['action' => 'monitor', $job->id]);
+    }
+}
+```
+
+> [!TIP]
+> **Throttling Updates:** For jobs that process thousands of items, avoid publishing on every iteration. Instead, publish every N items (e.g., every 10 or 100) or use time-based throttling to prevent flooding the Mercure hub.
 
 ## Contributing
 
