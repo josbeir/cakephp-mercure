@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Mercure;
 
+use InvalidArgumentException;
 use Mercure\Exception\MercureException;
 use Mercure\Internal\ConfigurationHelper;
 use Mercure\Jwt\FactoryTokenProvider;
@@ -97,13 +98,22 @@ class Publisher
                 throw new MercureException(sprintf("Token factory class '%s' not found", $factoryClass));
             }
 
-            $factory = new $factoryClass($secret, $algorithm);
+            try {
+                $factory = new $factoryClass($secret, $algorithm);
+            } catch (InvalidArgumentException $e) {
+                throw new MercureException($e->getMessage(), $e->getCode(), previous: $e);
+            }
+
             if (!$factory instanceof TokenFactoryInterface) {
                 throw new MercureException('Token factory must implement TokenFactoryInterface');
             }
         } else {
             // Option 3b: Default Firebase factory
-            $factory = new FirebaseTokenFactory($secret, $algorithm);
+            try {
+                $factory = new FirebaseTokenFactory($secret, $algorithm);
+            } catch (InvalidArgumentException $e) {
+                throw new MercureException($e->getMessage(), $e->getCode(), previous: $e);
+            }
         }
 
         return new FactoryTokenProvider($factory, $publish, $subscribe, $additionalClaims);

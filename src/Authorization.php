@@ -5,6 +5,7 @@ namespace Mercure;
 
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;
+use InvalidArgumentException;
 use Mercure\Exception\MercureException;
 use Mercure\Internal\ConfigurationHelper;
 use Mercure\Jwt\FirebaseTokenFactory;
@@ -57,13 +58,22 @@ class Authorization
                     throw new MercureException(sprintf("Token factory class '%s' not found", $factoryClass));
                 }
 
-                $factory = new $factoryClass($secret, $algorithm);
+                try {
+                    $factory = new $factoryClass($secret, $algorithm);
+                } catch (InvalidArgumentException $e) {
+                    throw new MercureException($e->getMessage(), $e->getCode(), previous: $e);
+                }
+
                 if (!$factory instanceof TokenFactoryInterface) {
                     throw new MercureException('Token factory must implement TokenFactoryInterface');
                 }
             } else {
                 // Use default Firebase factory
-                $factory = new FirebaseTokenFactory($secret, $algorithm);
+                try {
+                    $factory = new FirebaseTokenFactory($secret, $algorithm);
+                } catch (InvalidArgumentException $e) {
+                    throw new MercureException($e->getMessage(), $e->getCode(), previous: $e);
+                }
             }
 
             self::$instance = new AuthorizationService($factory, $cookieConfig);

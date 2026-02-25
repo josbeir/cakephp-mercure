@@ -8,6 +8,7 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use InvalidArgumentException;
 use Mercure\Jwt\FirebaseTokenFactory;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * FirebaseTokenFactory Test Case
@@ -172,13 +173,29 @@ class FirebaseTokenFactoryTest extends TestCase
     }
 
     /**
-     * Test creating a token with too short HS256 secret throws an exception
+     * Test creating a token with too short HMAC secret throws an exception
+     *
+     * @param string $algorithm HMAC algorithm
+     * @param string $secret Too short secret
      */
-    public function testCreateWithTooShortSecretThrowsException(): void
+    #[DataProvider('tooShortHmacSecretsProvider')]
+    public function testCreateWithTooShortSecretThrowsException(string $algorithm, string $secret): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('JWT secret is too short for HS256');
+        $this->expectExceptionMessage(sprintf('JWT secret is too short for %s', $algorithm));
 
-        new FirebaseTokenFactory('too-short-secret', 'HS256');
+        new FirebaseTokenFactory($secret, $algorithm);
+    }
+
+    /**
+     * @return array<string, array{algorithm: string, secret: string}>
+     */
+    public static function tooShortHmacSecretsProvider(): array
+    {
+        return [
+            'hs256' => ['algorithm' => 'HS256', 'secret' => str_repeat('a', 31)],
+            'hs384' => ['algorithm' => 'HS384', 'secret' => str_repeat('a', 47)],
+            'hs512' => ['algorithm' => 'HS512', 'secret' => str_repeat('a', 63)],
+        ];
     }
 }

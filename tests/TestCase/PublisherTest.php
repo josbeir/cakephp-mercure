@@ -460,4 +460,23 @@ class PublisherTest extends TestCase
 
         Publisher::create();
     }
+
+    /**
+     * Test getInstance wraps invalid JWT secret length in MercureException
+     */
+    public function testGetInstanceThrowsMercureExceptionWhenJwtSecretTooShort(): void
+    {
+        Configure::write('Mercure', [
+            'url' => 'http://localhost:3000/.well-known/mercure',
+            'jwt' => [
+                'secret' => 'too-short-secret',
+                'algorithm' => 'HS256',
+            ],
+        ]);
+
+        $this->expectException(MercureException::class);
+        $this->expectExceptionMessage('JWT secret is too short for HS256');
+
+        Publisher::create();
+    }
 }

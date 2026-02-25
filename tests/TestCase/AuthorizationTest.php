@@ -530,4 +530,19 @@ class AuthorizationTest extends TestCase
         $mercureHeader = array_filter($linkHeaders, fn(string $h): bool => str_contains($h, 'rel="mercure"'));
         $this->assertNotEmpty($mercureHeader);
     }
+
+    /**
+     * Test getInstance wraps invalid JWT secret length in MercureException
+     */
+    public function testGetInstanceThrowsMercureExceptionWhenJwtSecretTooShort(): void
+    {
+        Configure::write('Mercure.jwt.secret', 'too-short-secret');
+        Configure::write('Mercure.jwt.algorithm', 'HS256');
+        Authorization::clear();
+
+        $this->expectException(MercureException::class);
+        $this->expectExceptionMessage('JWT secret is too short for HS256');
+
+        Authorization::create();
+    }
 }
