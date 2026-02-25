@@ -43,6 +43,11 @@ return [
          *
          * Configure JWT authentication for the Mercure hub. Multiple strategies supported:
          *
+         * Important for HMAC algorithms:
+         * - HS256 requires at least 32-byte secret
+         * - HS384 requires at least 48-byte secret
+         * - HS512 requires at least 64-byte secret
+         *
          * 1. Secret-based (recommended):
          *    - 'secret' => Your JWT signing secret
          *    - 'algorithm' => Signing algorithm (default: HS256)

@@ -34,7 +34,7 @@ class AuthorizationTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'https://mercure.example.com/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
             ],
             'cookie' => [
@@ -143,7 +143,7 @@ class AuthorizationTest extends TestCase
      */
     public function testSetInstanceAllowsCustomInstance(): void
     {
-        $tokenFactory = new FirebaseTokenFactory('custom-secret', 'HS256');
+        $tokenFactory = new FirebaseTokenFactory('custom-secret-key-with-32-bytes-min!!', 'HS256');
         $customService = new AuthorizationService($tokenFactory, ['name' => 'customCookie']);
 
         Authorization::setInstance($customService);
@@ -434,7 +434,7 @@ class AuthorizationTest extends TestCase
             'url' => '',
             'public_url' => '',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
             ],
         ]);
@@ -529,5 +529,20 @@ class AuthorizationTest extends TestCase
 
         $mercureHeader = array_filter($linkHeaders, fn(string $h): bool => str_contains($h, 'rel="mercure"'));
         $this->assertNotEmpty($mercureHeader);
+    }
+
+    /**
+     * Test getInstance wraps invalid JWT secret length in MercureException
+     */
+    public function testGetInstanceThrowsMercureExceptionWhenJwtSecretTooShort(): void
+    {
+        Configure::write('Mercure.jwt.secret', 'too-short-secret');
+        Configure::write('Mercure.jwt.algorithm', 'HS256');
+        Authorization::clear();
+
+        $this->expectException(MercureException::class);
+        $this->expectExceptionMessage('JWT secret is too short for HS256');
+
+        Authorization::create();
     }
 }

@@ -6,14 +6,16 @@ namespace Mercure\Test\TestCase\Jwt;
 use Cake\TestSuite\TestCase;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use InvalidArgumentException;
 use Mercure\Jwt\FirebaseTokenFactory;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * FirebaseTokenFactory Test Case
  */
 class FirebaseTokenFactoryTest extends TestCase
 {
-    private string $secret = 'test-secret-key-for-jwt-signing';
+    private string $secret = 'test-secret-key-with-32-bytes-minimum!!';
 
     /**
      * Test creating a token with publish claims
@@ -122,7 +124,7 @@ class FirebaseTokenFactoryTest extends TestCase
      */
     public function testCreateWithDifferentAlgorithm(): void
     {
-        $secret = 'a-longer-secret-key-for-hs384-algorithm-testing';
+        $secret = 'a-longer-secret-key-for-hs384-algorithm-testing!!!!';
         $factory = new FirebaseTokenFactory($secret, 'HS384');
         $token = $factory->create([], ['*']);
 
@@ -168,5 +170,32 @@ class FirebaseTokenFactoryTest extends TestCase
         $decoded = JWT::decode($token, new Key($this->secret, 'HS256'));
         $this->assertSame($publish, $decoded->mercure->publish);
         $this->assertSame($subscribe, $decoded->mercure->subscribe);
+    }
+
+    /**
+     * Test creating a token with too short HMAC secret throws an exception
+     *
+     * @param string $algorithm HMAC algorithm
+     * @param string $secret Too short secret
+     */
+    #[DataProvider('tooShortHmacSecretsProvider')]
+    public function testCreateWithTooShortSecretThrowsException(string $algorithm, string $secret): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage(sprintf('JWT secret is too short for %s', $algorithm));
+
+        new FirebaseTokenFactory($secret, $algorithm);
+    }
+
+    /**
+     * @return array<string, array{algorithm: string, secret: string}>
+     */
+    public static function tooShortHmacSecretsProvider(): array
+    {
+        return [
+            'hs256' => ['algorithm' => 'HS256', 'secret' => str_repeat('a', 31)],
+            'hs384' => ['algorithm' => 'HS384', 'secret' => str_repeat('a', 47)],
+            'hs512' => ['algorithm' => 'HS512', 'secret' => str_repeat('a', 63)],
+        ];
     }
 }

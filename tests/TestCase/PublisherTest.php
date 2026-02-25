@@ -47,7 +47,7 @@ class PublisherTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'http://localhost:3000/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
             ],
         ]);
 
@@ -65,7 +65,7 @@ class PublisherTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'http://localhost:3000/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
             ],
         ]);
 
@@ -96,7 +96,7 @@ class PublisherTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'http://localhost:3000/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
             ],
         ]);
 
@@ -146,7 +146,7 @@ class PublisherTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'http://localhost:3000/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
             ],
         ]);
 
@@ -169,7 +169,7 @@ class PublisherTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'http://localhost:3000/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
             ],
         ]);
 
@@ -208,7 +208,7 @@ class PublisherTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'http://localhost:3000/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'a-longer-secret-key-for-hs384-algorithm-testing!!!!',
                 'algorithm' => 'HS384',
                 'publish' => ['https://example.com/feeds/{id}'],
                 'subscribe' => ['https://example.com/books/{id}'],
@@ -227,7 +227,7 @@ class PublisherTest extends TestCase
     {
         Configure::write('Mercure', [
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
             ],
         ]);
 
@@ -259,7 +259,7 @@ class PublisherTest extends TestCase
     {
         Configure::write('Mercure', [
             'url' => 'http://localhost:3000/.well-known/mercure',
-            'publisher_jwt' => 'backward-compat-secret',
+            'publisher_jwt' => 'backward-compat-secret-with-32-bytes-min!!',
         ]);
 
         $instance = Publisher::create();
@@ -349,7 +349,7 @@ class PublisherTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'http://localhost:3000/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'factory' => CustomTokenFactory::class,
                 'algorithm' => 'HS256',
             ],
@@ -368,7 +368,7 @@ class PublisherTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'http://localhost:3000/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'factory' => 'NonExistent\TokenFactory',
             ],
         ]);
@@ -387,7 +387,7 @@ class PublisherTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'http://localhost:3000/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'factory' => InvalidTokenFactory::class,
             ],
         ]);
@@ -406,7 +406,7 @@ class PublisherTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'http://localhost:3000/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
                 'publish' => ['https://example.com/*'],
                 'subscribe' => ['https://example.com/feeds/*'],
@@ -430,7 +430,7 @@ class PublisherTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'http://localhost:3000/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
             ],
             'http_client' => [
                 'timeout' => 30,
@@ -457,6 +457,25 @@ class PublisherTest extends TestCase
 
         $this->expectException(MercureException::class);
         $this->expectExceptionMessage('JWT secret or token must be configured');
+
+        Publisher::create();
+    }
+
+    /**
+     * Test getInstance wraps invalid JWT secret length in MercureException
+     */
+    public function testGetInstanceThrowsMercureExceptionWhenJwtSecretTooShort(): void
+    {
+        Configure::write('Mercure', [
+            'url' => 'http://localhost:3000/.well-known/mercure',
+            'jwt' => [
+                'secret' => 'too-short-secret',
+                'algorithm' => 'HS256',
+            ],
+        ]);
+
+        $this->expectException(MercureException::class);
+        $this->expectExceptionMessage('JWT secret is too short for HS256');
 
         Publisher::create();
     }
