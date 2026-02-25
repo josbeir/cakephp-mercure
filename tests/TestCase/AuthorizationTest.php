@@ -34,7 +34,7 @@ class AuthorizationTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'https://mercure.example.com/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
             ],
             'cookie' => [
@@ -143,7 +143,7 @@ class AuthorizationTest extends TestCase
      */
     public function testSetInstanceAllowsCustomInstance(): void
     {
-        $tokenFactory = new FirebaseTokenFactory('custom-secret', 'HS256');
+        $tokenFactory = new FirebaseTokenFactory('custom-secret-key-with-32-bytes-min!!', 'HS256');
         $customService = new AuthorizationService($tokenFactory, ['name' => 'customCookie']);
 
         Authorization::setInstance($customService);
@@ -434,7 +434,7 @@ class AuthorizationTest extends TestCase
             'url' => '',
             'public_url' => '',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
             ],
         ]);

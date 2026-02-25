@@ -36,7 +36,7 @@ class MercureHelperTest extends TestCase
         Configure::write('Mercure', [
             'url' => 'https://mercure.example.com/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
             ],
         ]);

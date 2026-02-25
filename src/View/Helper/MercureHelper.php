@@ -48,6 +48,8 @@ use Mercure\TopicManagementTrait;
  * $this->Mercure->addTopic('/user/123/messages');
  * $this->Mercure->addTopics(['/books/456', '/comments/789']);
  * ```
+ *
+ * @extends \Cake\View\Helper<\Cake\View\View>
  */
 class MercureHelper extends Helper
 {

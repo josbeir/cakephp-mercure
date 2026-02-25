@@ -37,7 +37,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
             'url' => 'https://mercure.example.com/.well-known/mercure',
             'public_url' => 'https://public.mercure.example.com/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
             ],
         ]);
@@ -90,7 +90,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
         $request = new ServerRequest();
         $response = new Response();
 
-        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler = $this->createStub(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn($response);
 
         $result = $this->middleware->process($request, $handler);
@@ -111,7 +111,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
         $request = new ServerRequest();
         $response = new Response();
 
-        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler = $this->createStub(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn($response);
 
         $result = $this->middleware->process($request, $handler);
@@ -129,7 +129,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
             'url' => '',
             'public_url' => '',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
             ],
         ]);
@@ -138,7 +138,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
         $request = new ServerRequest();
         $response = new Response();
 
-        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler = $this->createStub(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn($response);
 
         $this->expectException(MercureException::class);
@@ -156,7 +156,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
         $response = new Response();
         $response = $response->withHeader('X-Custom-Header', 'custom-value');
 
-        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler = $this->createStub(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn($response);
 
         $result = $this->middleware->process($request, $handler);
@@ -174,7 +174,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
         $response = new Response();
         $response = $response->withAddedHeader('Link', '<https://example.com/other>; rel="other"');
 
-        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler = $this->createStub(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn($response);
 
         $result = $this->middleware->process($request, $handler);
@@ -193,7 +193,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
         $request = new ServerRequest();
         $response = new Response(['status' => 201]);
 
-        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler = $this->createStub(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn($response);
 
         $result = $this->middleware->process($request, $handler);
@@ -211,7 +211,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
         $response = new Response();
         $response->getBody()->write('Test response body');
 
-        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler = $this->createStub(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn($response);
 
         $result = $this->middleware->process($request, $handler);
@@ -233,7 +233,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
             $request = new ServerRequest(['environment' => ['REQUEST_METHOD' => $method]]);
             $response = new Response();
 
-            $handler = $this->createMock(RequestHandlerInterface::class);
+            $handler = $this->createStub(RequestHandlerInterface::class);
             $handler->method('handle')->willReturn($response);
 
             $result = $this->middleware->process($request, $handler);
@@ -251,9 +251,9 @@ class MercureDiscoveryMiddlewareTest extends TestCase
         $request = new ServerRequest();
 
         // Create a mock PSR-7 ResponseInterface that is NOT a CakePHP Response
-        $response = $this->createMock(ResponseInterface::class);
+        $response = $this->createStub(ResponseInterface::class);
 
-        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler = $this->createStub(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn($response);
 
         $result = $this->middleware->process($request, $handler);
@@ -284,7 +284,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
         $response = new Response();
         $response = Authorization::setCookie($response, ['/feeds/123']);
 
-        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler = $this->createStub(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn($response);
 
         $result = $this->middleware->process($request, $handler);

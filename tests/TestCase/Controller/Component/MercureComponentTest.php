@@ -47,7 +47,7 @@ class MercureComponentTest extends TestCase
             'url' => 'https://mercure.example.com/.well-known/mercure',
             'public_url' => 'https://public.mercure.example.com/.well-known/mercure',
             'jwt' => [
-                'secret' => 'test-secret-key',
+                'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
             ],
             'cookie' => [

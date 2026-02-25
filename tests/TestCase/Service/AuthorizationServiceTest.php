@@ -36,7 +36,7 @@ class AuthorizationServiceTest extends TestCase
             'public_url' => 'https://public.mercure.example.com/.well-known/mercure',
         ]);
 
-        $this->tokenFactory = new FirebaseTokenFactory('test-secret', 'HS256');
+        $this->tokenFactory = new FirebaseTokenFactory('test-secret-key-with-32-bytes-minimum!!', 'HS256');
         $this->service = new AuthorizationService($this->tokenFactory, [
             'name' => 'testAuth',
             'expires' => null,

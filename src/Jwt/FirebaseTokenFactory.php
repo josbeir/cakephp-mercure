@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Mercure\Jwt;
 
 use Firebase\JWT\JWT;
+use InvalidArgumentException;
 
 /**
  * Firebase Token Factory
@@ -14,6 +15,17 @@ use Firebase\JWT\JWT;
 class FirebaseTokenFactory implements TokenFactoryInterface
 {
     /**
+     * Minimum key length in bytes for HMAC algorithms.
+     *
+     * @var array<string, int>
+     */
+    private const MIN_HMAC_KEY_LENGTH = [
+        'HS256' => 32,
+        'HS384' => 48,
+        'HS512' => 64,
+    ];
+
+    /**
      * Constructor
      *
      * @param string $secret The secret key for signing JWTs
@@ -23,6 +35,7 @@ class FirebaseTokenFactory implements TokenFactoryInterface
         private string $secret,
         private string $algorithm = 'HS256',
     ) {
+        $this->validateSymmetricKeyLength();
     }
 
     /**
@@ -59,5 +72,26 @@ class FirebaseTokenFactory implements TokenFactoryInterface
         );
 
         return JWT::encode($payload, $this->secret, $this->algorithm);
+    }
+
+    /**
+     * Validate HMAC key lengths to match the minimum security requirements.
+     *
+     * @throws \InvalidArgumentException When the configured key is too short
+     */
+    private function validateSymmetricKeyLength(): void
+    {
+        $minimumLength = self::MIN_HMAC_KEY_LENGTH[$this->algorithm] ?? null;
+        if ($minimumLength === null) {
+            return;
+        }
+
+        if (strlen($this->secret) < $minimumLength) {
+            throw new InvalidArgumentException(sprintf(
+                'JWT secret is too short for %s. Expected at least %d bytes.',
+                $this->algorithm,
+                $minimumLength,
+            ));
+        }
     }
 }

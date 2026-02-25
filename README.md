@@ -791,6 +791,12 @@ The plugin supports multiple JWT generation strategies:
 
 **1. Secret-based (default):**
 
+> [!IMPORTANT]
+> When using HMAC algorithms, ensure your secret meets minimum lengths:
+> - `HS256`: at least 32 bytes
+> - `HS384`: at least 48 bytes
+> - `HS512`: at least 64 bytes
+
 ```php
 'jwt' => [
     'secret' => env('MERCURE_JWT_SECRET'),

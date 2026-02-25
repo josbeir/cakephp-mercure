@@ -6,6 +6,7 @@ namespace Mercure\Test\TestCase\Jwt;
 use Cake\TestSuite\TestCase;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use InvalidArgumentException;
 use Mercure\Jwt\FirebaseTokenFactory;
 
 /**
@@ -13,7 +14,7 @@ use Mercure\Jwt\FirebaseTokenFactory;
  */
 class FirebaseTokenFactoryTest extends TestCase
 {
-    private string $secret = 'test-secret-key-for-jwt-signing';
+    private string $secret = 'test-secret-key-with-32-bytes-minimum!!';
 
     /**
      * Test creating a token with publish claims
@@ -122,7 +123,7 @@ class FirebaseTokenFactoryTest extends TestCase
      */
     public function testCreateWithDifferentAlgorithm(): void
     {
-        $secret = 'a-longer-secret-key-for-hs384-algorithm-testing';
+        $secret = 'a-longer-secret-key-for-hs384-algorithm-testing!!!!';
         $factory = new FirebaseTokenFactory($secret, 'HS384');
         $token = $factory->create([], ['*']);
 
@@ -168,5 +169,16 @@ class FirebaseTokenFactoryTest extends TestCase
         $decoded = JWT::decode($token, new Key($this->secret, 'HS256'));
         $this->assertSame($publish, $decoded->mercure->publish);
         $this->assertSame($subscribe, $decoded->mercure->subscribe);
+    }
+
+    /**
+     * Test creating a token with too short HS256 secret throws an exception
+     */
+    public function testCreateWithTooShortSecretThrowsException(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('JWT secret is too short for HS256');
+
+        new FirebaseTokenFactory('too-short-secret', 'HS256');
     }
 }
