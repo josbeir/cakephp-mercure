@@ -19,7 +19,6 @@ class MercurePlugin extends BasePlugin
      * Load all the plugin configuration and bootstrap logic.
      *
      * @param \Cake\Core\PluginApplicationInterface $app The host application
-     * @phpstan-ignore-next-line missingType.generics
      */
     public function bootstrap(PluginApplicationInterface $app): void
     {
