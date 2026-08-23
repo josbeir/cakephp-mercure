@@ -9,7 +9,6 @@ use Mercure\Authorization;
 use Mercure\Publisher;
 use Mercure\Service\AuthorizationInterface;
 use Mercure\Service\PublisherInterface;
-use function Cake\Core\deprecationWarning;
 
 /**
  * Mercure Service Provider
@@ -29,17 +28,6 @@ class MercureServiceProvider extends ServiceProvider
         PublisherInterface::class,
         AuthorizationInterface::class,
     ];
-
-    /**
-     * Emit a deprecation warning when this legacy service provider is used.
-     */
-    public function __construct()
-    {
-        deprecationWarning(
-            '0.3.0',
-            'MercureServiceProvider is deprecated. Services are registered automatically by MercurePlugin.',
-        );
-    }
 
     /**
      * Register services in the container

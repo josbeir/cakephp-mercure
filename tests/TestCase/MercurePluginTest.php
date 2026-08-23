@@ -14,7 +14,6 @@ use Mercure\MercurePlugin;
 use Mercure\Publisher;
 use Mercure\Service\AuthorizationInterface;
 use Mercure\Service\PublisherInterface;
-use Mercure\ServiceProvider\MercureServiceProvider;
 
 /**
  * Plugin service registration.
@@ -58,13 +57,6 @@ class MercurePluginTest extends TestCase
         (new MercurePlugin())->services($container);
 
         $this->assertServicesResolve($container);
-    }
-
-    public function testMercureServiceProviderIsDeprecated(): void
-    {
-        $this->deprecated(function (): void {
-            new MercureServiceProvider();
-        });
     }
 
     public function testServicesAreRegisteredInTheCakePhpContainer(): void
