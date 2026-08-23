@@ -14,6 +14,10 @@ use Mercure\Service\PublisherInterface;
  * Mercure Service Provider
  *
  * Registers Mercure services in the application container.
+ *
+ * @deprecated Direct service registration in {@see \Mercure\MercurePlugin::services()}
+ *     supports both CakePHP container implementations. This class remains only
+ *     for backwards compatibility and will be removed in the next major release.
  */
 class MercureServiceProvider extends ServiceProvider
 {
