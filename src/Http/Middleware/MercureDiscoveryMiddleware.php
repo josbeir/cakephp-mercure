@@ -48,7 +48,7 @@ class MercureDiscoveryMiddleware implements MiddlewareInterface
 
         // Add discovery header if response and request are CakePHP instances
         if ($response instanceof Response && $request instanceof ServerRequest) {
-            $response = Authorization::addDiscoveryHeader($response, $request);
+            return Authorization::addDiscoveryHeader($response, $request);
         }
 
         return $response;
