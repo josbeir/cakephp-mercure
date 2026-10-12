@@ -3,27 +3,22 @@ declare(strict_types=1);
 
 namespace Mercure\Test\TestCase;
 
-use Cake\Container\Container as CakeContainer;
-use Cake\Core\CakeContainerBridge;
+use Cake\Container\Container;
+use Cake\Container\ContainerInterface;
 use Cake\Core\Configure;
-use Cake\Core\Container;
-use Cake\Core\ContainerInterface;
 use Cake\TestSuite\TestCase;
 use Mercure\Authorization;
 use Mercure\MercurePlugin;
 use Mercure\Publisher;
 use Mercure\Service\AuthorizationInterface;
 use Mercure\Service\PublisherInterface;
+use Mercure\ServiceProvider\MercureServiceProvider;
 
 /**
  * Plugin service registration.
  *
- * The plugin has to register the same two services whichever container the
- * application selected. CakePHP 5.4 added an opt-in container
- * (`App.container = 'cake'`) whose bridge accepts only
- * `Cake\Container\ServiceProvider\ServiceProviderInterface`, so registering
- * through `Cake\Core\ServiceProvider` - a League `AbstractServiceProvider` -
- * threw on boot for those applications.
+ * Services resolve through CakePHP 6's native container, either through the
+ * plugin or through the retained service provider.
  */
 class MercurePluginTest extends TestCase
 {
@@ -50,7 +45,7 @@ class MercurePluginTest extends TestCase
         Authorization::clear();
     }
 
-    public function testServicesAreRegisteredInTheLeagueContainer(): void
+    public function testServicesAreRegisteredInTheCakePhpContainer(): void
     {
         $container = new Container();
 
@@ -59,17 +54,23 @@ class MercurePluginTest extends TestCase
         $this->assertServicesResolve($container);
     }
 
-    public function testServicesAreRegisteredInTheCakePhpContainer(): void
+    public function testServiceProviderRegistersServices(): void
     {
-        if (!class_exists(CakeContainerBridge::class)) {
-            $this->markTestSkipped('The CakePHP container arrived in CakePHP 5.4.');
-        }
+        $container = new Container();
+        $provider = new MercureServiceProvider();
+        $container->addServiceProvider($provider);
 
-        $container = new CakeContainerBridge(new CakeContainer());
+        $this->assertTrue($provider->provides(PublisherInterface::class));
+        $this->assertTrue($provider->provides(AuthorizationInterface::class));
+        $this->assertFalse($provider->provides('unknown-service'));
 
-        // This is the call that used to throw: a League service provider is not
-        // a `Cake\Container` service provider, and the bridge says so.
-        (new MercurePlugin())->services($container);
+        $this->assertServicesResolve($container);
+    }
+
+    public function testServiceProviderServicesMethodRegistersServices(): void
+    {
+        $container = new Container();
+        (new MercureServiceProvider())->services($container);
 
         $this->assertServicesResolve($container);
     }

@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ 'main' ]
+    branches: [ 'main', 'cake6' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, cake6 ]
 
 env:
   PHP_EXTENSIONS: intl
@@ -14,11 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php-version: [8.2, 8.3, 8.4, 8.5]
-        prefer-lowest: ['']
-        include:
-          - php-version: '8.2'
-            prefer-lowest: 'prefer-lowest'
+        php-version: ['8.5']
+        prefer-lowest: ['', 'prefer-lowest']
 
     steps:
       - name: Setup PHP
@@ -34,15 +31,15 @@ jobs:
       - name: Install dependencies
         run: |
           if ${{ matrix.prefer-lowest == 'prefer-lowest' }}; then
-            composer update --prefer-lowest --prefer-stable
-            composer require --dev dereuromark/composer-prefer-lowest:dev-master
+            composer require --dev --no-update dereuromark/composer-prefer-lowest:dev-master
+            composer update --prefer-lowest --prefer-stable --prefer-dist --no-interaction --no-progress
           else
             composer install --prefer-dist --no-interaction --no-progress
           fi
 
       - name: Run PHPUnit
         run: |
-          if [[ ${{ matrix.php-version }} == '8.4' ]]; then
+          if [[ '${{ matrix.prefer-lowest }}' == '' ]]; then
             vendor/bin/phpunit --coverage-clover=coverage.xml
           else
             vendor/bin/phpunit
@@ -53,7 +50,7 @@ jobs:
         run: vendor/bin/validate-prefer-lowest -m
 
       - name: Upload coverage reports to Codecov
-        if: success() && matrix.php-version == '8.4'
+        if: success() && matrix.prefer-lowest == ''
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -69,11 +66,14 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.4
+          php-version: '8.5'
           extensions: ${{ env.PHP_EXTENSIONS }}
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Validate Composer configuration
+        run: composer validate --strict
 
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --no-progress --error-format=github

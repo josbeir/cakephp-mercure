@@ -3,10 +3,9 @@ declare(strict_types=1);
 
 namespace Mercure\ServiceProvider;
 
-use Cake\Core\ContainerInterface;
-use Cake\Core\ServiceProvider;
-use Mercure\Authorization;
-use Mercure\Publisher;
+use Cake\Container\ContainerInterface;
+use Cake\Container\ServiceProvider\AbstractServiceProvider;
+use Mercure\MercurePlugin;
 use Mercure\Service\AuthorizationInterface;
 use Mercure\Service\PublisherInterface;
 
@@ -16,10 +15,10 @@ use Mercure\Service\PublisherInterface;
  * Registers Mercure services in the application container.
  *
  * @deprecated Direct service registration in {@see \Mercure\MercurePlugin::services()}
- *     supports both CakePHP container implementations. This class remains only
+ *     registers services in CakePHP's native container. This class remains only
  *     for backwards compatibility and will be removed in the next major release.
  */
-class MercureServiceProvider extends ServiceProvider
+class MercureServiceProvider extends AbstractServiceProvider
 {
     /**
      * @var array<string>
@@ -32,16 +31,26 @@ class MercureServiceProvider extends ServiceProvider
     /**
      * Register services in the container
      *
-     * @param \Cake\Core\ContainerInterface $container The container to register services in
+     * @param \Cake\Container\ContainerInterface $container The container to register services in
      */
     public function services(ContainerInterface $container): void
     {
-        $container->add(PublisherInterface::class, function (): PublisherInterface {
-            return Publisher::create();
-        });
+        (new MercurePlugin())->services($container);
+    }
 
-        $container->add(AuthorizationInterface::class, function (): AuthorizationInterface {
-            return Authorization::create();
-        });
+    /**
+     * @inheritDoc
+     */
+    public function provides(string $id): bool
+    {
+        return in_array($id, $this->provides, true);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function register(): void
+    {
+        $this->services($this->getContainer());
     }
 }

@@ -50,16 +50,11 @@ if (!is_dir(CACHE)) {
     mkdir(CACHE, 0770, true);
 }
 
-$cache_key = '_cake_translations_';
-if (Configure::version() <= '5.1.0') {
-    $cache_key = '_cake_core_';
-}
-
 $cache = [
     'default' => [
         'engine' => 'File',
     ],
-    $cache_key => [
+    '_cake_translations_' => [
         'className' => 'File',
         'prefix' => '_cake_core_',
         'path' => CACHE . 'persistent/',

@@ -54,9 +54,8 @@ final class SimpleUpdate extends AbstractUpdateBuilder
      * Set the data for the update
      *
      * @param mixed $data Data for the update
-     * @return $this
      */
-    public function data(mixed $data)
+    public function data(mixed $data): static
     {
         $this->data = $data;
 

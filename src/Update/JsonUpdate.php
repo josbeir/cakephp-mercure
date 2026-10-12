@@ -58,9 +58,8 @@ final class JsonUpdate extends AbstractUpdateBuilder
      * Set the data to be JSON-encoded
      *
      * @param mixed $data Data to encode as JSON (array, object, etc.)
-     * @return $this
      */
-    public function data(mixed $data)
+    public function data(mixed $data): static
     {
         $this->data = $data;
 
@@ -71,9 +70,8 @@ final class JsonUpdate extends AbstractUpdateBuilder
      * Set JSON encoding options
      *
      * @param int $options JSON encoding options (e.g., JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
-     * @return $this
      */
-    public function jsonOptions(int $options)
+    public function jsonOptions(int $options): static
     {
         $this->jsonOptions = $options;
 

@@ -133,7 +133,7 @@ class MercureComponent extends Component
      *
      * @var array<string, mixed>
      */
-    protected array $_defaultConfig = [
+    protected array $defaultConfig = [
         'autoDiscover' => false,
         'discoverWithTopics' => false,
         'defaultTopics' => [],
