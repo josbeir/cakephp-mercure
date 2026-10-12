@@ -40,9 +40,8 @@ abstract class AbstractUpdateBuilder
      * Set the topic(s) to publish to
      *
      * @param array<string>|string $topics Topic(s) to publish to
-     * @return $this
      */
-    public function topics(array|string $topics)
+    public function topics(array|string $topics): static
     {
         $this->topics = is_array($topics) ? $topics : [$topics];
 
@@ -53,9 +52,8 @@ abstract class AbstractUpdateBuilder
      * Mark this update as private
      *
      * @param bool $private Whether this is a private update
-     * @return $this
      */
-    public function private(bool $private = true)
+    public function private(bool $private = true): static
     {
         $this->private = $private;
 
@@ -66,9 +64,8 @@ abstract class AbstractUpdateBuilder
      * Set the event ID
      *
      * @param string|null $id Event ID
-     * @return $this
      */
-    public function id(?string $id)
+    public function id(?string $id): static
     {
         if ($id !== null) {
             $this->id = $id;
@@ -81,9 +78,8 @@ abstract class AbstractUpdateBuilder
      * Set the event type
      *
      * @param string|null $type Event type
-     * @return $this
      */
-    public function type(?string $type)
+    public function type(?string $type): static
     {
         if ($type !== null) {
             $this->type = $type;
@@ -96,9 +92,8 @@ abstract class AbstractUpdateBuilder
      * Set the retry delay
      *
      * @param int|null $retry Retry delay in milliseconds
-     * @return $this
      */
-    public function retry(?int $retry)
+    public function retry(?int $retry): static
     {
         if ($retry !== null) {
             $this->retry = $retry;

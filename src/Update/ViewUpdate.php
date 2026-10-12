@@ -88,9 +88,8 @@ final class ViewUpdate extends AbstractUpdateBuilder
      * Set the template to render
      *
      * @param string $template Template name (e.g., 'Books/view')
-     * @return $this
      */
-    public function template(string $template)
+    public function template(string $template): static
     {
         $this->template = $template;
         $this->element = null; // Clear element if set
@@ -102,9 +101,8 @@ final class ViewUpdate extends AbstractUpdateBuilder
      * Set the element to render
      *
      * @param string $element Element name (e.g., 'Books/item')
-     * @return $this
      */
-    public function element(string $element)
+    public function element(string $element): static
     {
         $this->element = $element;
         $this->template = null; // Clear template if set
@@ -116,9 +114,8 @@ final class ViewUpdate extends AbstractUpdateBuilder
      * Set view variables
      *
      * @param array<string, mixed> $viewVars View variables
-     * @return $this
      */
-    public function viewVars(mixed $viewVars)
+    public function viewVars(mixed $viewVars): static
     {
         $this->viewVars = $viewVars;
 
@@ -130,9 +127,8 @@ final class ViewUpdate extends AbstractUpdateBuilder
      *
      * @param string $key Variable name
      * @param mixed $value Variable value
-     * @return $this
      */
-    public function set(string $key, mixed $value)
+    public function set(string $key, mixed $value): static
     {
         $this->viewVars[$key] = $value;
 
@@ -143,9 +139,8 @@ final class ViewUpdate extends AbstractUpdateBuilder
      * Set the layout to use
      *
      * @param string|null $layout Layout name or null to disable layout
-     * @return $this
      */
-    public function layout(?string $layout)
+    public function layout(?string $layout): static
     {
         if ($layout !== null) {
             $this->layout = $layout;
@@ -158,9 +153,8 @@ final class ViewUpdate extends AbstractUpdateBuilder
      * Set ViewBuilder options
      *
      * @param array<string, mixed> $options ViewBuilder options (plugin, theme, helpers, etc.)
-     * @return $this
      */
-    public function viewOptions(array $options)
+    public function viewOptions(array $options): static
     {
         if ($options !== []) {
             $this->viewOptions = $options;
@@ -175,9 +169,8 @@ final class ViewUpdate extends AbstractUpdateBuilder
      * Useful for testing or when you need complete control over view configuration.
      *
      * @param \Cake\View\ViewBuilder $builder ViewBuilder instance
-     * @return $this
      */
-    public function withViewBuilder(ViewBuilder $builder)
+    public function withViewBuilder(ViewBuilder $builder): static
     {
         $this->viewBuilder = $builder;
 

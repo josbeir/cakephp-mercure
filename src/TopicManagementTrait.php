@@ -23,9 +23,8 @@ trait TopicManagementTrait
      * Add a single topic
      *
      * @param string $topic Topic to add
-     * @return $this
      */
-    public function addTopic(string $topic)
+    public function addTopic(string $topic): static
     {
         if (!in_array($topic, $this->topics, true)) {
             $this->topics[] = $topic;
@@ -38,9 +37,8 @@ trait TopicManagementTrait
      * Add multiple topics
      *
      * @param array<string> $topics Topics to add
-     * @return $this
      */
-    public function addTopics(array $topics)
+    public function addTopics(array $topics): static
     {
         foreach ($topics as $topic) {
             $this->addTopic($topic);

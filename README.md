@@ -1,13 +1,17 @@
 [![PHPStan Level 8](https://img.shields.io/badge/PHPStan-level%208-brightgreen)](https://github.com/josbeir/cakephp-mercure)
-[![Build Status](https://github.com/josbeir/cakephp-mercure/actions/workflows/ci.yml/badge.svg)](https://github.com/josbeir/cakephp-mercure/actions)
+[![Build Status](https://github.com/josbeir/cakephp-mercure/actions/workflows/ci.yml/badge.svg?branch=cake6)](https://github.com/josbeir/cakephp-mercure/actions?query=branch%3Acake6)
 [![codecov](https://codecov.io/github/josbeir/cakephp-mercure/graph/badge.svg?token=4VGWJQTWH5)](https://codecov.io/github/josbeir/cakephp-mercure)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PHP Version](https://img.shields.io/badge/php-8.2%2B-blue.svg)](https://www.php.net/releases/8.2/en.php)
+[![PHP Version](https://img.shields.io/badge/php-8.5%2B-blue.svg)](https://www.php.net/releases/8.5/en.php)
+[![CakePHP Version](https://img.shields.io/badge/CakePHP-6.x-red.svg)](https://cakephp.org/)
 [![Packagist Downloads](https://img.shields.io/packagist/dt/josbeir/cakephp-mercure)](https://packagist.org/packages/josbeir/cakephp-mercure)
 
 # CakePHP Mercure Plugin
 
 Push real-time updates to clients using the Mercure protocol.
+
+> [!NOTE]
+> The `cake6` branch targets the upcoming CakePHP 6 release and requires PHP 8.5 or higher, matching the current [CakePHP 6 requirements](https://github.com/cakephp/cakephp/blob/6.x/composer.json). For CakePHP 5 applications, use the stable plugin releases on `main`.
 
 [![Mercure](https://mercure.rocks/static/logo.svg)](https://mercure.rocks/)
 
@@ -76,13 +80,22 @@ Common use cases include live dashboards, collaborative editing, real-time notif
 
 > [!IMPORTANT]
 > **Minimum Requirements:**
-> - PHP 8.2 or higher
-> - CakePHP 5.0.1 or higher
+> - PHP 8.5 or higher
+> - CakePHP 6.x (currently a development release)
 
-Install the plugin using Composer:
+While CakePHP 6 and its dependencies are in development, set the following in your application's `composer.json` to allow development dependencies while preferring stable releases:
+
+```json
+{
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
+```
+
+Install the CakePHP 6 branch using Composer:
 
 ```bash
-composer require josbeir/cakephp-mercure
+composer require josbeir/cakephp-mercure:dev-cake6 --with-all-dependencies
 ```
 
 Load the plugin in your `Application.php`:
