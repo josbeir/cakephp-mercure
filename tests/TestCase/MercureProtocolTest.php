@@ -42,11 +42,7 @@ class MercureProtocolTest extends TestCase
             'jwt' => [
                 'secret' => self::SECRET,
                 'publish' => ['*'],
-                'additional_claims' => [
-                    'iss' => 'https://app.example.com',
-                    'sub' => 'app',
-                    'client_id' => 'cakephp',
-                ],
+                'issuer' => 'https://app.example.com',
             ],
         ]);
     }
@@ -162,6 +158,83 @@ class MercureProtocolTest extends TestCase
     }
 
     /**
+     * The official local hub needs only its URL and signing key.
+     */
+    public function testMinimalConfigurationGeneratesCompleteAccessToken(): void
+    {
+        Configure::write('Mercure', [
+            'url' => 'https://localhost/.well-known/mercure',
+            'jwt' => ['secret' => self::SECRET],
+        ]);
+        $jwt = Authorization::setCookie(new Response(), ['*'])
+            ->getCookieCollection()->get('__Secure-mercure_access_token')->getValue();
+        $this->assertIsString($jwt);
+        $claims = JWT::decode($jwt, new Key(self::SECRET, 'HS256'));
+        $this->assertSame('https://localhost', $claims->iss);
+        $this->assertSame('https://localhost/.well-known/mercure', $claims->aud);
+        $this->assertSame('https://localhost', $claims->sub);
+        $this->assertSame('https://localhost', $claims->client_id);
+        $this->assertNotEmpty($claims->jti);
+        $this->assertEqualsWithDelta(time(), $claims->iat, 2);
+        $this->assertEqualsWithDelta(time() + 3600, $claims->exp, 2);
+    }
+
+    /**
+     * Named options configure identity without requiring additional claims.
+     */
+    public function testNamedIdentityAndAudienceOptions(): void
+    {
+        Configure::delete('Mercure.url');
+        Configure::delete('Mercure.public_url');
+        Configure::write('Mercure.jwt.audience', 'urn:hub');
+        Configure::write('Mercure.jwt.subject', 'service');
+        Configure::write('Mercure.jwt.client_id', 'cakephp-app');
+        $jwt = Authorization::setCookie(new Response(), ['*'])
+            ->getCookieCollection()->get('__Secure-mercure_access_token')->getValue();
+        $this->assertIsString($jwt);
+        $claims = JWT::decode($jwt, new Key(self::SECRET, 'HS256'));
+        $this->assertSame('https://app.example.com', $claims->iss);
+        $this->assertSame('urn:hub', $claims->aud);
+        $this->assertSame('service', $claims->sub);
+        $this->assertSame('cakephp-app', $claims->client_id);
+    }
+
+    /**
+     * Existing additional claims and per-request identities retain their precedence.
+     */
+    public function testExplicitClaimsOverrideNamedOptionsAndDefaults(): void
+    {
+        Configure::write('Mercure.jwt.subject', 'service');
+        Configure::write('Mercure.jwt.client_id', 'default-client');
+        Configure::write('Mercure.jwt.additional_claims', [
+            'iss' => 'https://other-issuer.example.com',
+            'sub' => 'configured-subject',
+            'client_id' => 'configured-client',
+        ]);
+        $jwt = Authorization::setCookie(new Response(), ['*'], ['sub' => 'user-42'])
+            ->getCookieCollection()->get('__Secure-mercure_access_token')->getValue();
+        $this->assertIsString($jwt);
+        $claims = JWT::decode($jwt, new Key(self::SECRET, 'HS256'));
+        $this->assertSame('https://other-issuer.example.com', $claims->iss);
+        $this->assertSame('user-42', $claims->sub);
+        $this->assertSame('configured-client', $claims->client_id);
+    }
+
+    /**
+     * Direct factory users also receive application identity defaults.
+     */
+    public function testFactoryDefaultsIdentityToIssuer(): void
+    {
+        $factory = new FirebaseTokenFactory(self::SECRET, defaultClaims: [
+            'iss' => 'https://app.example.com',
+            'aud' => 'urn:hub',
+        ]);
+        $claims = JWT::decode($factory->create(), new Key(self::SECRET, 'HS256'));
+        $this->assertSame('https://app.example.com', $claims->sub);
+        $this->assertSame('https://app.example.com', $claims->client_id);
+    }
+
+    /**
      * Distinct exact topics keep their grants and subscription parameters.
      *
      * @param array<string|array{match: string, match_type?: string}> $topics Distinct topic matchers
@@ -254,7 +327,7 @@ class MercureProtocolTest extends TestCase
      */
     public static function requiredClaims(): array
     {
-        return ['issuer' => ['iss'], 'audience' => ['aud'], 'subject' => ['sub'], 'client' => ['client_id']];
+        return ['issuer' => ['iss'], 'audience' => ['aud']];
     }
 
     /**
@@ -286,6 +359,8 @@ class MercureProtocolTest extends TestCase
         return [
             'empty issuer' => [['iss' => '']],
             'numeric subject' => [['sub' => 42]],
+            'empty subject' => [['sub' => '']],
+            'empty client' => [['client_id' => '']],
             'empty audience' => [['aud' => []]],
             'object-shaped audience' => [['aud' => ['resource' => 'hub']]],
             'invalid audience entry' => [['aud' => ['hub', 42]]],

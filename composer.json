@@ -1,6 +1,6 @@
 {
     "name": "josbeir/cakephp-mercure",
-    "description": "Mercure plugin for CakePHP",
+    "description": "Mercure 1.x integration for CakePHP with automatic JWT generation and private subscriptions",
     "type": "cakephp-plugin",
     "license": "MIT",
     "require": {
