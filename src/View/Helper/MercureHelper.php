@@ -6,6 +6,7 @@ namespace Mercure\View\Helper;
 use Cake\View\Helper;
 use Mercure\Internal\ConfigurationHelper;
 use Mercure\Internal\SubscriptionUrlBuilder;
+use Mercure\Internal\TopicMatcher;
 use Mercure\TopicManagementTrait;
 
 /**
@@ -96,7 +97,7 @@ class MercureHelper extends Helper
             return $topics;
         }
 
-        return array_values(array_unique(array_merge($this->topics, $topics), SORT_REGULAR));
+        return TopicMatcher::unique(array_merge($this->topics, $topics));
     }
 
     /**

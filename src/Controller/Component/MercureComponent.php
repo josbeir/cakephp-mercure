@@ -8,6 +8,7 @@ use Cake\Event\EventInterface;
 use Mercure\Authorization;
 use Mercure\Internal\ConfigurationHelper;
 use Mercure\Internal\SubscriptionUrlBuilder;
+use Mercure\Internal\TopicMatcher;
 use Mercure\Publisher;
 use Mercure\Service\AuthorizationInterface;
 use Mercure\Service\PublisherInterface;
@@ -337,7 +338,7 @@ class MercureComponent extends Component
     public function authorize(array $subscribe = [], array $additionalClaims = []): static
     {
         // Merge parameter topics with accumulated topics
-        $allSubscribe = array_unique(array_merge($this->subscribe, $subscribe), SORT_REGULAR);
+        $allSubscribe = TopicMatcher::unique(array_merge($this->subscribe, $subscribe));
 
         // Merge parameter claims with accumulated claims (parameters take precedence)
         $allClaims = array_merge($this->additionalClaims, $additionalClaims);

@@ -13,6 +13,24 @@ use InvalidArgumentException;
 class TopicMatcher
 {
     /**
+     * Remove strictly identical matchers while preserving topic strings and order.
+     *
+     * @param array<string|array{match: string, match_type?: string}> $topics Topic matchers
+     * @return array<string|array{match: string, match_type?: string}>
+     */
+    public static function unique(array $topics): array
+    {
+        $unique = [];
+        foreach ($topics as $topic) {
+            if (!in_array($topic, $unique, true)) {
+                $unique[] = $topic;
+            }
+        }
+
+        return $unique;
+    }
+
+    /**
      * @param array{match: string, match_type?: string}|string $topic Topic matcher
      * @return array{match: string, match_type?: string}
      */

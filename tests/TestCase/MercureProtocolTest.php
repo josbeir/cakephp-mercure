@@ -145,6 +145,56 @@ class MercureProtocolTest extends TestCase
     }
 
     /**
+     * A complete token configuration can issue cookies without a publishing URL.
+     */
+    public function testExplicitAudienceDoesNotRequireHubUrl(): void
+    {
+        Configure::delete('Mercure.url');
+        Configure::delete('Mercure.public_url');
+        Configure::write('Mercure.jwt.additional_claims.aud', 'urn:mercure:hub');
+
+        $cookie = Authorization::setCookie(new Response(), ['*'])
+            ->getCookieCollection()->get('__Secure-mercure_access_token');
+        $jwt = $cookie->getValue();
+        $this->assertIsString($jwt);
+        $claims = JWT::decode($jwt, new Key(self::SECRET, 'HS256'));
+        $this->assertSame('urn:mercure:hub', $claims->aud);
+    }
+
+    /**
+     * Distinct exact topics keep their grants and subscription parameters.
+     *
+     * @param array<string|array{match: string, match_type?: string}> $topics Distinct topic matchers
+     */
+    #[DataProvider('numericTopics')]
+    public function testNumericTopicsRemainDistinct(array $topics): void
+    {
+        $helper = new MercureHelper(new View(), ['defaultTopics' => [$topics[0]]]);
+        $url = $helper->url([$topics[1], $topics[0]]);
+        $this->assertSame('https://hub.example.com/.well-known/mercure?match=01&match=1', $url);
+
+        $controller = new Controller(new ServerRequest());
+        $component = new MercureComponent(new ComponentRegistry($controller));
+        $component->addSubscribe($topics[0])->authorize([$topics[1], $topics[0]])->discover(includeTopics: true);
+        $jwt = $controller->getResponse()->getCookieCollection()->get('__Secure-mercure_access_token')->getValue();
+        $this->assertIsString($jwt);
+        $claims = JWT::decode($jwt, new Key(self::SECRET, 'HS256'));
+        $this->assertSame(['01', '1'], array_column($claims->authorization_details[0]->topics, 'match'));
+        $this->assertStringContainsString('?match=01&match=1', $controller->getResponse()->getHeaderLine('Link'));
+    }
+
+    /**
+     * @return array<string, array{array<string|array{match: string, match_type?: string}>}>
+     */
+    public static function numericTopics(): array
+    {
+        return [
+            'strings' => [['01', '1']],
+            'typed matchers' => [[['match' => '01'], ['match' => '1']]],
+        ];
+    }
+
+    /**
      * Matchers survive helper defaults, controller accumulation and discovery URLs.
      */
     public function testHelpersAndComponentsUseModernMatchers(): void
