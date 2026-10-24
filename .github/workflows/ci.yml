@@ -102,7 +102,7 @@ jobs:
           - 19081:80
         env:
           SERVER_NAME: ':80'
-          MERCURE_TRUSTED_ISSUERS: https://app.example.com
+          MERCURE_TRUSTED_ISSUERS: https://localhost
           MERCURE_PUBLISHER_JWT_KEY: mercure-protocol-test-secret-at-least-32-bytes
           MERCURE_SUBSCRIBER_JWT_KEY: mercure-protocol-test-secret-at-least-32-bytes
           MERCURE_EXTRA_DIRECTIVES: |

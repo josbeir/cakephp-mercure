@@ -41,11 +41,6 @@ class MercureHubIntegrationTest extends TestCase
             'url' => $url,
             'jwt' => [
                 'secret' => self::SECRET,
-                'additional_claims' => [
-                    'iss' => 'https://app.example.com',
-                    'sub' => 'app',
-                    'client_id' => 'cakephp',
-                ],
             ],
             'cookie' => ['name' => 'mercure_access_token', 'secure' => false],
         ]);

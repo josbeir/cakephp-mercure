@@ -53,7 +53,9 @@ return [
          *    - 'algorithm' => Signing algorithm (default: HS256)
          *    - 'publish' => Topics allowed to publish (['*'] = all)
          *    - 'subscribe' => Topics allowed to subscribe
-         *    - 'additional_claims' => Extra JWT claims (exp, iss, etc.)
+         *    - 'issuer' => Must match the hub's trusted issuer (default: https://localhost)
+         *    - 'audience' => Hub resource identifier (default: public_url, then url)
+         *    - 'additional_claims' => Optional JWT overrides (exp, per-user sub, etc.)
          *
          * 2. Static token:
          *    - 'value' => Pre-generated JWT token
@@ -72,13 +74,13 @@ return [
             'algorithm' => 'HS256',
             'publish' => ['*'],
             'subscribe' => [],
-            // Mercure requires iss (trusted hub issuer), sub and client_id.
-            // iat, exp (+1 hour) and jti are generated for each access token.
-            'additional_claims' => [
-                'iss' => env('MERCURE_JWT_ISSUER', ''),
-                'sub' => env('MERCURE_JWT_SUBJECT', ''),
-                'client_id' => env('MERCURE_JWT_CLIENT_ID', ''),
-            ],
+            'issuer' => env('MERCURE_JWT_ISSUER', 'https://localhost'),
+            'audience' => env('MERCURE_JWT_AUDIENCE', null),
+            // Optional identities; omitted values default to the issuer.
+            'subject' => env('MERCURE_JWT_SUBJECT', null),
+            'client_id' => env('MERCURE_JWT_CLIENT_ID', null),
+            // iat, exp (+1 hour), jti and identity defaults are generated automatically.
+            'additional_claims' => [],
         ],
 
         /**

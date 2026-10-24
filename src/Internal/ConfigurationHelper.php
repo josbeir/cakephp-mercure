@@ -22,7 +22,16 @@ class ConfigurationHelper
      */
     public static function getJwtDefaultClaims(): array
     {
-        $claims = self::getJwtConfig()['additional_claims'] ?? [];
+        $jwtConfig = self::getJwtConfig();
+        $claims = $jwtConfig['additional_claims'] ?? [];
+        $claimOptions = ['issuer' => 'iss', 'audience' => 'aud', 'subject' => 'sub', 'client_id' => 'client_id'];
+        foreach ($claimOptions as $option => $claim) {
+            if (!array_key_exists($claim, $claims) && isset($jwtConfig[$option])) {
+                $claims[$claim] = $jwtConfig[$option];
+            }
+        }
+
+        $claims += ['iss' => 'https://localhost'];
         if (!array_key_exists('aud', $claims)) {
             $claims['aud'] = self::getPublicUrl();
         }
