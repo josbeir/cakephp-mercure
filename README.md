@@ -132,7 +132,6 @@ For development, you can run the hub using Docker:
 ```bash
 docker run -d \
     -e SERVER_NAME=:3000 \
-    -e MERCURE_TRUSTED_ISSUERS=https://app.example.com \
     -e MERCURE_EXTRA_DIRECTIVES=$'anonymous\ncookie_name mercure_access_token' \
     -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
@@ -184,8 +183,6 @@ services:
       - MERCURE_PUBLIC_URL=/mercure-hub
       - MERCURE_JWT_SECRET=!ChangeThisMercureHubJWTSecretKey!
       - MERCURE_JWT_ISSUER=https://app.example.com
-      - MERCURE_JWT_SUBJECT=cakephp-app
-      - MERCURE_JWT_CLIENT_ID=cakephp-app
       - MERCURE_COOKIE_NAME=mercure_access_token
 ```
 
@@ -220,18 +217,14 @@ Then configure relative URLs in `config/app_custom.php`:
         'secret' => env('MERCURE_JWT_SECRET', '!ChangeThisMercureHubJWTSecretKey!'),
         'algorithm' => 'HS256',
         'publish' => ['*'],
-        'additional_claims' => [
-            'iss' => env('MERCURE_JWT_ISSUER'),
-            'sub' => env('MERCURE_JWT_SUBJECT'),
-            'client_id' => env('MERCURE_JWT_CLIENT_ID'),
-            'aud' => 'https://app.example.com/mercure-hub',
-        ],
+        'issuer' => env('MERCURE_JWT_ISSUER'),
+        'audience' => 'https://app.example.com/mercure-hub',
     ],
 ],
 ```
 
 Replace `https://app.example.com` in the app and hub configuration with your actual DDEV origin.
-The explicit `aud` must match the hub's `resource_identifier` when `public_url` is relative.
+The explicit `jwt.audience` must match the hub's `resource_identifier` when `public_url` is relative.
 
 Run `ddev restart` to apply the changes. Using a relative `public_url` like `/mercure-hub` means the browser will automatically use the current origin, making it work regardless of DDEV's dynamic port assignment.
 
@@ -248,15 +241,23 @@ For development, the fastest way to get started is using environment variables i
 
 ```env
 MERCURE_URL=http://localhost:3000/.well-known/mercure
-MERCURE_PUBLIC_URL=http://localhost:3000/.well-known/mercure
 MERCURE_JWT_SECRET=!ChangeThisMercureHubJWTSecretKey!
-MERCURE_JWT_ISSUER=https://app.example.com
-MERCURE_JWT_SUBJECT=cakephp-app
-MERCURE_JWT_CLIENT_ID=cakephp-app
 # For local HTTP only; configure the same cookie_name on the hub.
 MERCURE_COOKIE_NAME=mercure_access_token
 MERCURE_COOKIE_SECURE=false
 ```
+
+This matches the local Docker command above: the hub and plugin both default to the issuer
+`https://localhost`. No `additional_claims`, subject, or client ID is required. `public_url` defaults to
+`url`, and tokens automatically receive an audience, application identities, issue time, expiry, and
+unique identifier.
+
+For a custom deployment, set `MERCURE_JWT_ISSUER` to the same value as the hub's
+`MERCURE_TRUSTED_ISSUERS`. The localhost issuer is a development default, not an issuer inferred from
+`MERCURE_URL`. Use `MERCURE_PUBLIC_URL` when browser and server addresses differ; set
+`MERCURE_JWT_AUDIENCE` explicitly if the hub validates a different resource identifier.
+For a hub reached through different internal and public addresses, pin its `resource_identifier`
+to the audience used by the application, as shown in the Caddyfile example below.
 
 **Configuration Files:**
 
@@ -283,18 +284,20 @@ For a complete list of available environment variables, see the plugin's `config
 
 ## Mercure 1.x
 
-This major release implements the Mercure 1.x protocol only. Upgrade the hub and application together;
+The 0.3.x release series implements the Mercure 1.x protocol only. Upgrade the hub and application together;
 there is no legacy protocol switch. See the [official upgrade guide](https://mercure.rocks/docs/UPGRADE).
 
 ### Breaking changes and migration
 
 - Generated tokens use the `at+jwt` header and RFC 9396 `authorization_details`, replacing the `mercure` claim.
-- Configure `jwt.additional_claims.iss`, `sub`, and `client_id` as non-empty strings. The issuer must match
-  an `issuer` block on the hub. For subscriber cookies, pass the authenticated user's string identifier
-  as `additionalClaims['sub']`; publisher tokens can use an application identity.
-- `aud` defaults to `public_url`, falling back to `url`. Override `jwt.additional_claims.aud` when the hub
-  pins a `resource_identifier`, uses different internal and public addresses, or the public URL is relative.
-  The audience must equal the resource identifier that the hub validates.
+- Use `jwt.issuer` for the issuer trusted by your hub. It defaults to `https://localhost`, matching the
+  official local hub. Subject and client ID default to that issuer and require no manual setup.
+- The audience defaults to `public_url`, falling back to `url`. Set `jwt.audience` when the hub pins a
+  `resource_identifier`, uses different internal and public addresses, or the public URL is relative.
+  An explicit audience also allows cookie issuance without configuring a publishing URL.
+- Existing `jwt.additional_claims` values remain supported. They override named options, and
+  per-request claims override configured claims. An explicit invalid value is rejected rather than
+  silently replaced.
 - Tokens receive a fresh `iat`, `jti`, and an `exp` one hour ahead. Explicit claims override these defaults.
   Subscriber expiry follows an explicit `exp` claim, otherwise cookie lifetime settings.
 - The default cookie is `__Secure-mercure_access_token`, with `secure` and `httponly` enabled.
@@ -309,7 +312,7 @@ there is no legacy protocol switch. See the [official upgrade guide](https://mer
   The built-in factory accepts `defaultClaims` as its third constructor argument. Its grant arguments
   generate `authorization_details`; additional claims cannot override those grants.
 
-A complete application configuration (use your own issuer, identity, hub and secret):
+A complete application configuration (use your own issuer, hub and secret):
 
 ```php
 // config/app_mercure.php
@@ -320,13 +323,9 @@ return [
         'jwt' => [
             'secret' => env('MERCURE_JWT_SECRET'),
             'publish' => ['*'],
-            'additional_claims' => [
-                'iss' => 'https://app.example.com',
-                'sub' => 'cakephp-app',
-                'client_id' => 'cakephp-app',
-                // Set this explicitly if the hub pins a different resource identifier:
-                // 'aud' => 'https://hub.example.com/.well-known/mercure',
-            ],
+            'issuer' => 'https://app.example.com',
+            // Only needed if the hub pins a different resource identifier:
+            // 'audience' => 'https://hub.example.com/.well-known/mercure',
         ],
     ],
 ];
@@ -338,6 +337,7 @@ For a custom Caddyfile, replace the old top-level `publisher_jwt` / `subscriber_
 
 ```caddyfile
 mercure {
+    resource_identifier https://hub.example.com/.well-known/mercure
     issuer https://app.example.com {
         publisher {
             jwt {env.MERCURE_PUBLISHER_JWT_KEY} HS256
@@ -925,13 +925,35 @@ The plugin supports multiple JWT generation strategies:
     'algorithm' => 'HS256',
     'publish' => ['*'],
     'subscribe' => ['*'],
-    'additional_claims' => [
-        'iss' => env('MERCURE_JWT_ISSUER'),
-        'sub' => env('MERCURE_JWT_SUBJECT'),
-        'client_id' => env('MERCURE_JWT_CLIENT_ID'),
-    ],
+    'issuer' => env('MERCURE_JWT_ISSUER', 'https://localhost'),
+    // 'audience' => 'https://hub.example.com/.well-known/mercure',
 ]
 ```
+
+The built-in factory generates complete JWT access tokens automatically. The hub checks the issuer,
+audience, expiry, signature, token type, and topic grants. `sub` and `client_id` are included for the
+JWT access-token standard; users do not need to configure them for a simple setup. Mercure's own token
+command also generates these identities automatically. See [Mercure authorization](https://mercure.rocks/docs/concepts/authorization#the-access-token).
+
+Optional JWT settings:
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `issuer` / `MERCURE_JWT_ISSUER` | `https://localhost` | Must match the hub's trusted issuer |
+| `audience` / `MERCURE_JWT_AUDIENCE` | `public_url`, then `url` | The resource identifier validated by the hub |
+| `subject` / `MERCURE_JWT_SUBJECT` | Issuer | Application identity; override per request for a user identity |
+| `client_id` / `MERCURE_JWT_CLIENT_ID` | Issuer | Identity of the client application |
+| `additional_claims` | `[]` | Optional overrides, such as an explicit expiry |
+
+For a subscriber-specific identity:
+
+```php
+$response = Authorization::setCookie($response, ['/books/123'], ['sub' => (string)$userId]);
+```
+
+Topic grants control access to private updates; changing the subject does not grant access to a topic.
+If you instantiate `FirebaseTokenFactory` directly, provide `iss` and `aud` in `defaultClaims`; it fills
+`sub`, `client_id`, `iat`, `exp`, and `jti` automatically. Explicit identity overrides remain validated.
 
 **2. Static token:**
 

@@ -46,6 +46,7 @@ class FirebaseTokenFactory implements TokenFactoryInterface
      *
      * Generates a token following the Mercure protocol specification.
      * The token includes authorization_details containing publish/subscribe topic matchers.
+     * Subject and client identity default to the issuer when omitted.
      *
      * @param array<string|array{match: string, match_type?: string}>|null $subscribe List of topic selectors to allow subscribing to
      * @param array<string|array{match: string, match_type?: string}>|null $publish List of topic selectors to allow publishing to
@@ -58,6 +59,7 @@ class FirebaseTokenFactory implements TokenFactoryInterface
         array $additionalClaims = [],
     ): string {
         $claims = array_replace($this->defaultClaims, $additionalClaims);
+        $claims += ['sub' => $claims['iss'] ?? null, 'client_id' => $claims['iss'] ?? null];
         foreach (['iss', 'sub', 'client_id'] as $claim) {
             if (!isset($claims[$claim]) || !is_string($claims[$claim]) || $claims[$claim] === '') {
                 throw new InvalidArgumentException(sprintf('Mercure 1.0 requires a non-empty "%s" JWT claim.', $claim));
