@@ -18,6 +18,17 @@ use Mercure\Exception\MercureException;
 class ConfigurationHelper
 {
     /**
+     * @return array<string, mixed> Default claims for publishers and subscribers
+     */
+    public static function getJwtDefaultClaims(): array
+    {
+        $claims = self::getJwtConfig()['additional_claims'] ?? [];
+        $claims += ['aud' => self::getPublicUrl()];
+
+        return $claims;
+    }
+
+    /**
      * Get the Mercure hub URL from configuration
      *
      * This is the server-side URL used for publishing updates.

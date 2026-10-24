@@ -89,7 +89,7 @@ class Publisher
         $algorithm = $jwtConfig['algorithm'] ?? 'HS256';
         $publish = $jwtConfig['publish'] ?? ['*'];
         $subscribe = $jwtConfig['subscribe'] ?? [];
-        $additionalClaims = $jwtConfig['additional_claims'] ?? [];
+        $additionalClaims = ConfigurationHelper::getJwtDefaultClaims();
 
         // Option 3a: Custom factory class
         if (isset($jwtConfig['factory'])) {

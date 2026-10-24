@@ -28,8 +28,8 @@ class CustomTokenFactory implements TokenFactoryInterface
     /**
      * Create a JWT token with Mercure claims
      *
-     * @param array<string>|null $subscribe List of topic selectors to allow subscribing to
-     * @param array<string>|null $publish List of topic selectors to allow publishing to
+     * @param array<string|array{match: string, match_type?: string}>|null $subscribe List of topic selectors to allow subscribing to
+     * @param array<string|array{match: string, match_type?: string}>|null $publish List of topic selectors to allow publishing to
      * @param array<string, mixed> $additionalClaims Additional claims to include in the JWT payload
      * @return string JWT token
      */

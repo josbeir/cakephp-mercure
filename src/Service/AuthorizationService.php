@@ -34,15 +34,19 @@ class AuthorizationService implements AuthorizationInterface
      *
      * @param \Mercure\Jwt\TokenFactoryInterface $tokenFactory Token factory for JWT generation
      * @param array<string, mixed> $cookieConfig Cookie configuration options
+     * @param array<string, mixed> $defaultClaims Default JWT identity and audience claims
      */
-    public function __construct(TokenFactoryInterface $tokenFactory, array $cookieConfig = [])
-    {
+    public function __construct(
+        TokenFactoryInterface $tokenFactory,
+        array $cookieConfig = [],
+        private array $defaultClaims = [],
+    ) {
         $this->tokenFactory = $tokenFactory;
         $this->cookieConfig = $cookieConfig + [
-            'name' => 'mercureAuthorization',
+            'name' => '__Secure-mercure_access_token',
             'path' => '/',
             'domain' => null,
-            'secure' => false,
+            'secure' => true,
             'httponly' => true,
             'samesite' => CookieInterface::SAMESITE_STRICT,
             'expires' => null,
@@ -54,7 +58,7 @@ class AuthorizationService implements AuthorizationInterface
      * Create and set the authorization cookie on the response
      *
      * @param \Cake\Http\Response $response The response object to modify
-     * @param array<string> $subscribe Array of topics the subscriber can access
+     * @param array<string|array{match: string, match_type?: string}> $subscribe Array of topics the subscriber can access
      * @param array<string, mixed> $additionalClaims Additional JWT claims to include
      * @return \Cake\Http\Response Modified response with cookie set
      * @throws \Mercure\Exception\MercureException
@@ -81,6 +85,9 @@ class AuthorizationService implements AuthorizationInterface
         $options = [
             'path' => $this->cookieConfig['path'],
             'domain' => $this->cookieConfig['domain'],
+            'secure' => $this->cookieConfig['secure'],
+            'httponly' => $this->cookieConfig['httponly'],
+            'samesite' => $this->cookieConfig['samesite'],
         ];
 
         $cookie = Cookie::create(name: $this->cookieConfig['name'], value: '', options: $options)
@@ -98,13 +105,15 @@ class AuthorizationService implements AuthorizationInterface
      * Automatically sets the 'exp' (expiry) claim based on cookie lifetime unless
      * explicitly provided in additionalClaims.
      *
-     * @param array<string> $subscribe Topics the subscriber can access
+     * @param array<string|array{match: string, match_type?: string}> $subscribe Topics the subscriber can access
      * @param array<string, mixed> $additionalClaims Additional JWT claims
      * @return string JWT token
      * @throws \Mercure\Exception\MercureException
      */
     private function createSubscriberJwt(array $subscribe, array $additionalClaims = []): string
     {
+        $additionalClaims = array_replace($this->defaultClaims, $additionalClaims);
+
         // Auto-set JWT expiry claim if not provided
         if (!isset($additionalClaims['exp'])) {
             $additionalClaims['exp'] = $this->calculateExpiry();

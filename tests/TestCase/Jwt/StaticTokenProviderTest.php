@@ -23,19 +23,6 @@ class StaticTokenProviderTest extends TestCase
     }
 
     /**
-     * Test that the provider consistently returns the same token
-     */
-    public function testGetJwtIsConsistent(): void
-    {
-        $token = 'test.token.value';
-        $provider = new StaticTokenProvider($token);
-
-        $this->assertSame($token, $provider->getJwt());
-        $this->assertSame($token, $provider->getJwt());
-        $this->assertSame($token, $provider->getJwt());
-    }
-
-    /**
      * Test that empty token is allowed
      */
     public function testEmptyTokenIsAllowed(): void

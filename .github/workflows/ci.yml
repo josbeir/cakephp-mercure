@@ -13,8 +13,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        php-version: [8.2, 8.3, 8.4, 8.5]
+        php-version: ['8.2', '8.3', '8.4', '8.5', '8.6']
         prefer-lowest: ['']
         include:
           - php-version: '8.2'
@@ -26,12 +27,15 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
           extensions: ${{ env.PHP_EXTENSIONS }}
-          coverage: pcov
+          coverage: ${{ matrix.php-version == '8.4' && 'pcov' || 'none' }}
 
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install dependencies
+        env:
+          # Exercise PHP 8.6 while dependencies still cap support at PHP 8.5.
+          COMPOSER_IGNORE_PLATFORM_REQ: ${{ matrix.php-version == '8.6' && 'php+' || '' }}
         run: |
           if ${{ matrix.prefer-lowest == 'prefer-lowest' }}; then
             composer update --prefer-lowest --prefer-stable
@@ -83,3 +87,41 @@ jobs:
 
       - name: Run Rector
         run: vendor/bin/rector process --dry-run
+
+  mercure-integration:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mercure-version: [v1.0.0, v1.1.4]
+        php-version: ['8.4', '8.5', '8.6']
+    services:
+      mercure:
+        image: dunglas/mercure:${{ matrix.mercure-version }}
+        ports:
+          - 19081:80
+        env:
+          SERVER_NAME: ':80'
+          MERCURE_TRUSTED_ISSUERS: https://app.example.com
+          MERCURE_PUBLISHER_JWT_KEY: mercure-protocol-test-secret-at-least-32-bytes
+          MERCURE_SUBSCRIBER_JWT_KEY: mercure-protocol-test-secret-at-least-32-bytes
+          MERCURE_EXTRA_DIRECTIVES: |
+            resource_identifier http://127.0.0.1:19081/.well-known/mercure
+            cookie_name mercure_access_token
+            cors_origins http://127.0.0.1:19081
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: none
+      - name: Install dependencies
+        env:
+          # Ignore only PHP upper bounds for the forward-compatibility jobs.
+          COMPOSER_IGNORE_PLATFORM_REQ: ${{ matrix.php-version == '8.6' && 'php+' || '' }}
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Test strict Mercure 1.x publishing and private subscriptions
+        env:
+          MERCURE_TEST_URL: http://127.0.0.1:19081/.well-known/mercure
+        run: vendor/bin/phpunit tests/TestCase/MercureHubIntegrationTest.php

@@ -19,6 +19,7 @@ Push real-time updates to clients using the Mercure protocol.
   - [Running a Mercure Hub](#running-a-mercure-hub)
   - [Custom DDEV Setup with Nginx Proxy](#custom-ddev-setup-with-nginx-proxy)
 - [Configuration](#configuration)
+- [Mercure 1.x](#mercure-1x)
 - [Basic Usage](#basic-usage)
   - [Choosing Your Authorization Strategy](#choosing-your-authorization-strategy)
   - [Publishing Updates](#publishing-updates)
@@ -72,6 +73,9 @@ Common use cases include live dashboards, collaborative editing, real-time notif
 
 ## Installation
 
+This major version requires a Mercure 1.x hub. See [Mercure 1.x](#mercure-1x) for the required JWT
+configuration and migration steps. Mercure 0.x is no longer supported.
+
 ### Installing the Plugin
 
 > [!IMPORTANT]
@@ -115,10 +119,12 @@ For development, you can run the hub using Docker:
 ```bash
 docker run -d \
     -e SERVER_NAME=:3000 \
+    -e MERCURE_TRUSTED_ISSUERS=https://app.example.com \
+    -e MERCURE_EXTRA_DIRECTIVES=$'anonymous\ncookie_name mercure_access_token' \
     -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     -p 3000:3000 \
-    dunglas/mercure
+    dunglas/mercure:v1.1.4
 ```
 
 If you're using DDEV, you can install the Mercure add-on:
@@ -140,17 +146,20 @@ Create `.ddev/docker-compose.mercure.yaml`:
 ```yaml
 services:
   mercure:
-    image: dunglas/mercure
+    image: dunglas/mercure:v1.1.4
     container_name: ddev-${DDEV_SITENAME}-mercure
     restart: "no"
     expose:
       - "80"
     environment:
       SERVER_NAME: ':80'
+      MERCURE_TRUSTED_ISSUERS: https://app.example.com
       MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
       MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
       MERCURE_EXTRA_DIRECTIVES: |
         anonymous
+        cookie_name mercure_access_token
+        resource_identifier https://app.example.com/mercure-hub
         cors_origins *
     labels:
       com.ddev.site-name: ${DDEV_SITENAME}
@@ -161,6 +170,10 @@ services:
       - MERCURE_URL=http://mercure/.well-known/mercure
       - MERCURE_PUBLIC_URL=/mercure-hub
       - MERCURE_JWT_SECRET=!ChangeThisMercureHubJWTSecretKey!
+      - MERCURE_JWT_ISSUER=https://app.example.com
+      - MERCURE_JWT_SUBJECT=cakephp-app
+      - MERCURE_JWT_CLIENT_ID=cakephp-app
+      - MERCURE_COOKIE_NAME=mercure_access_token
 ```
 
 Create `.ddev/nginx/mercure.conf`:
@@ -194,9 +207,18 @@ Then configure relative URLs in `config/app_custom.php`:
         'secret' => env('MERCURE_JWT_SECRET', '!ChangeThisMercureHubJWTSecretKey!'),
         'algorithm' => 'HS256',
         'publish' => ['*'],
+        'additional_claims' => [
+            'iss' => env('MERCURE_JWT_ISSUER'),
+            'sub' => env('MERCURE_JWT_SUBJECT'),
+            'client_id' => env('MERCURE_JWT_CLIENT_ID'),
+            'aud' => 'https://app.example.com/mercure-hub',
+        ],
     ],
 ],
 ```
+
+Replace `https://app.example.com` in the app and hub configuration with your actual DDEV origin.
+The explicit `aud` must match the hub's `resource_identifier` when `public_url` is relative.
 
 Run `ddev restart` to apply the changes. Using a relative `public_url` like `/mercure-hub` means the browser will automatically use the current origin, making it work regardless of DDEV's dynamic port assignment.
 
@@ -215,6 +237,12 @@ For development, the fastest way to get started is using environment variables i
 MERCURE_URL=http://localhost:3000/.well-known/mercure
 MERCURE_PUBLIC_URL=http://localhost:3000/.well-known/mercure
 MERCURE_JWT_SECRET=!ChangeThisMercureHubJWTSecretKey!
+MERCURE_JWT_ISSUER=https://app.example.com
+MERCURE_JWT_SUBJECT=cakephp-app
+MERCURE_JWT_CLIENT_ID=cakephp-app
+# For local HTTP only; configure the same cookie_name on the hub.
+MERCURE_COOKIE_NAME=mercure_access_token
+MERCURE_COOKIE_SECURE=false
 ```
 
 **Configuration Files:**
@@ -239,6 +267,87 @@ Create `config/app_mercure.php` in your project to customize any settings. Your 
 > This enables the authorization cookie to be accessible by both your application and the Mercure hub. Without this setting, authorization will fail for cross-subdomain requests.
 
 For a complete list of available environment variables, see the plugin's `config/mercure.php` [file](https://github.com/josbeir/cakephp-mercure/blob/main/config/mercure.php).
+
+## Mercure 1.x
+
+This major release implements the Mercure 1.x protocol only. Upgrade the hub and application together;
+there is no legacy protocol switch. See the [official upgrade guide](https://mercure.rocks/docs/UPGRADE).
+
+### Breaking changes and migration
+
+- Generated tokens use the `at+jwt` header and RFC 9396 `authorization_details`, replacing the `mercure` claim.
+- Configure `jwt.additional_claims.iss`, `sub`, and `client_id` as non-empty strings. The issuer must match
+  an `issuer` block on the hub. For subscriber cookies, pass the authenticated user's string identifier
+  as `additionalClaims['sub']`; publisher tokens can use an application identity.
+- `aud` defaults to `public_url`, falling back to `url`. Override `jwt.additional_claims.aud` when the hub
+  pins a `resource_identifier`, uses different internal and public addresses, or the public URL is relative.
+  The audience must equal the resource identifier that the hub validates.
+- Tokens receive a fresh `iat`, `jti`, and an `exp` one hour ahead. Explicit claims override these defaults.
+  Subscriber expiry follows an explicit `exp` claim, otherwise cookie lifetime settings.
+- The default cookie is `__Secure-mercure_access_token`, with `secure` and `httponly` enabled.
+  Remove old `cookie.name` overrides and clear existing `mercureAuthorization` cookies during migration.
+  For HTTP development, set a prefix-less cookie name on both the app and hub and set `secure` to `false`.
+- Subscription URLs use `match` or `match_urlpattern`; manual JavaScript must replace `topic` accordingly.
+  Use `last_event_id` for reconnection cursors. Publication POST bodies still use `topic`.
+- URI Templates such as `/books/{id}` are no longer supported. Strings are exact matches, including
+  strings containing `*`; use an explicit URL Pattern matcher for patterns. The reserved string `*`
+  still grants access to every topic.
+- Static tokens, custom providers, and custom factories must also issue Mercure 1.x access tokens.
+  The built-in factory accepts `defaultClaims` as its third constructor argument. Its grant arguments
+  generate `authorization_details`; additional claims cannot override those grants.
+
+A complete application configuration (use your own issuer, identity, hub and secret):
+
+```php
+// config/app_mercure.php
+return [
+    'Mercure' => [
+        'url' => 'http://mercure/.well-known/mercure',
+        'public_url' => 'https://hub.example.com/.well-known/mercure',
+        'jwt' => [
+            'secret' => env('MERCURE_JWT_SECRET'),
+            'publish' => ['*'],
+            'additional_claims' => [
+                'iss' => 'https://app.example.com',
+                'sub' => 'cakephp-app',
+                'client_id' => 'cakephp-app',
+                // Set this explicitly if the hub pins a different resource identifier:
+                // 'aud' => 'https://hub.example.com/.well-known/mercure',
+            ],
+        ],
+    ],
+];
+```
+
+Configure the hub with the same issuer and signing key. The official Docker image accepts
+`MERCURE_TRUSTED_ISSUERS=https://app.example.com` alongside its publisher and subscriber JWT key variables.
+For a custom Caddyfile, replace the old top-level `publisher_jwt` / `subscriber_jwt` directives:
+
+```caddyfile
+mercure {
+    issuer https://app.example.com {
+        publisher {
+            jwt {env.MERCURE_PUBLISHER_JWT_KEY} HS256
+        }
+        subscriber {
+            jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} HS256
+        }
+    }
+}
+```
+
+Use the same matcher shape for JWT permissions, helper URLs, and component subscriptions:
+
+```php
+$matcher = ['match' => 'https://example.com/books/:id', 'match_type' => 'urlpattern'];
+$response = Authorization::setCookie($this->response, [$matcher], ['sub' => (string)$userId]);
+$url = $this->Mercure->url([$matcher]); // match_urlpattern=https%3A%2F%2Fexample.com%2Fbooks%2F%3Aid
+
+$this->Mercure->addSubscribe($matcher)->authorize()->discover(includeTopics: true);
+```
+
+For literal topics, continue using strings such as `'/books/123'`. URL Pattern values should be absolute
+patterns. Neither wildcard syntax nor URI Templates are automatically converted.
 
 ## Basic Usage
 
@@ -579,7 +688,7 @@ class BooksController extends AppController
         // Or direct authorization
         $this->Mercure->authorize(
             subscribe: ["https://example.com/books/{$id}"],
-            additionalClaims: ['sub' => $userId] // Optional
+            additionalClaims: ['sub' => (string)$userId] // Optional
         );
 
         $this->set('book', $book);
@@ -712,7 +821,7 @@ fetch('/api/resource')
         const match = linkHeader.match(/<([^>]+)>;\s*rel="mercure"/);
         if (match) {
             const hubUrl = match[1];
-            const eventSource = new EventSource(hubUrl + '?topic=/api/resource');
+            const eventSource = new EventSource(hubUrl + '?match=/api/resource');
         }
     });
 ```
@@ -737,7 +846,7 @@ When you want the `rel="self"` Link header to include the topics the user is aut
 ```php
 // Option 1: Enable per-call
 $this->Mercure
-    ->authorize(['/books/123', '/notifications/*'])
+    ->authorize(['/books/123', '/notifications'])
     ->discover(includeTopics: true);
 
 // Option 2: Enable in component config
@@ -754,7 +863,7 @@ $this->Mercure
 This generates both headers:
 
 ```
-Link: <https://hub.example.com/.well-known/mercure?topic=%2Fbooks%2F123>; rel="self"
+Link: <https://hub.example.com/.well-known/mercure?match=%2Fbooks%2F123>; rel="self"
 Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
 ```
 
@@ -803,6 +912,11 @@ The plugin supports multiple JWT generation strategies:
     'algorithm' => 'HS256',
     'publish' => ['*'],
     'subscribe' => ['*'],
+    'additional_claims' => [
+        'iss' => env('MERCURE_JWT_ISSUER'),
+        'sub' => env('MERCURE_JWT_SUBJECT'),
+        'client_id' => env('MERCURE_JWT_CLIENT_ID'),
+    ],
 ]
 ```
 
@@ -833,7 +947,7 @@ class CustomTokenProvider implements TokenProviderInterface
 {
     public function getJwt(): string
     {
-        // Generate and return JWT token
+        // Return a Mercure 1.x JWT access token (at+jwt and authorization_details)
         return $this->generateToken();
     }
 }
@@ -865,7 +979,7 @@ class CustomTokenFactory implements TokenFactoryInterface
 
     public function create(array $subscribe = [], array $publish = [], array $additionalClaims = []): string
     {
-        // Create and return JWT token
+        // Create a Mercure 1.x JWT access token (at+jwt and authorization_details)
     }
 }
 ```
@@ -887,7 +1001,7 @@ The authorization cookie contains a JWT token that authenticates subscribers to 
 
 ```php
 'cookie' => [
-    'name' => 'mercureAuthorization',
+    'name' => '__Secure-mercure_access_token',
 
     // Lifetime in seconds (0 for session cookie)
     'lifetime' => 3600,  // 1 hour
@@ -1005,7 +1119,7 @@ public function initialize(): void
 | `addTopics(array $topics)` | `$this` | Add multiple topics for the view |
 | `getTopics()` | `array` | Get all topics added in the component |
 | `resetTopics()` | `$this` | Reset all accumulated topics |
-| `addSubscribe(string $topic, array $additionalClaims = [])` | `$this` | Add a topic to authorize with optional JWT claims |
+| `addSubscribe(string\|array $topic, array $additionalClaims = [])` | `$this` | Add a topic to authorize with optional JWT claims |
 | `addSubscribes(array $topics, array $additionalClaims = [])` | `$this` | Add multiple topics to authorize with optional JWT claims |
 | `getSubscribe()` | `array` | Get accumulated subscribe topics |
 | `getAdditionalClaims()` | `array` | Get accumulated JWT claims |
@@ -1051,26 +1165,26 @@ Build up authorization topics and claims fluently, then call `authorize()`:
 ```php
 // Build up gradually with claims
 $this->Mercure
-    ->addSubscribe('/books/123', ['sub' => $userId])
-    ->addSubscribe('/notifications/*', ['role' => 'admin'])
+    ->addSubscribe('/books/123', ['sub' => (string)$userId])
+    ->addSubscribe('/notifications', ['role' => 'admin'])
     ->authorize()
     ->discover();
 
 // Add multiple at once
 $this->Mercure->addSubscribes(
-    ['/books/123', '/notifications/*'],
+    ['/books/123', '/notifications'],
     ['sub' => $userId, 'role' => 'admin']
 );
 
 // Mix builder and direct parameters
 $this->Mercure
     ->addSubscribe('/books/123')
-    ->authorize(['/notifications/*'], ['sub' => $userId]);
+    ->authorize(['/notifications'], ['sub' => (string)$userId]);
 
 // Chain with topic management
 $this->Mercure
     ->addTopic('/books/123')                          // For EventSource
-    ->addSubscribe('/books/123', ['sub' => $userId])  // For authorization
+    ->addSubscribe('/books/123', ['sub' => (string)$userId])  // For authorization
     ->authorize()
     ->discover();
 ```
@@ -1121,7 +1235,7 @@ Static facade for direct authorization management (alternative to component).
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `url(array\|string\|null $topics, array $subscribe, array $additionalClaims)` | `string` | Get hub URL **and optionally authorize** (only sets cookie when `$subscribe` is provided). Merges with default topics if configured. |
+| `url(array\|string\|null $topics = null)` | `string` | Get the subscription URL with exact or URL Pattern matchers, merged with default topics. |
 | `addTopic(string $topic)` | `$this` | Add a single topic to default topics (fluent interface) |
 | `addTopics(array $topics)` | `$this` | Add multiple topics to default topics (fluent interface) |
 
@@ -1525,7 +1639,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // For relative URLs, combine with current origin
     const hubUrl = '<?= $this->Mercure->url() ?>';
     const url = new URL(hubUrl, window.location.origin);
-    url.searchParams.append('topic', topic);
+    url.searchParams.append('match', topic);
 
     const eventSource = new EventSource(url.toString());
 
