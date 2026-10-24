@@ -18,20 +18,25 @@ class FirebaseTokenFactoryTest extends TestCase
     private string $secret = 'test-secret-key-with-32-bytes-minimum!!';
 
     /**
+     * @var array<string, string>
+     */
+    private array $claims = ['iss' => 'issuer', 'aud' => 'hub', 'sub' => 'app', 'client_id' => 'tests'];
+
+    /**
      * Test creating a token with publish claims
      */
     public function testCreateWithPublishClaims(): void
     {
-        $factory = new FirebaseTokenFactory($this->secret);
+        $factory = new FirebaseTokenFactory($this->secret, defaultClaims: $this->claims);
         $token = $factory->create([], ['*']);
 
         $this->assertNotEmpty($token);
 
         // Decode and verify the token
         $decoded = JWT::decode($token, new Key($this->secret, 'HS256'));
-        $this->assertObjectHasProperty('mercure', $decoded);
-        $this->assertObjectHasProperty('publish', $decoded->mercure);
-        $this->assertSame(['*'], $decoded->mercure->publish);
+        $this->assertObjectHasProperty('authorization_details', $decoded);
+        $this->assertSame(['publish'], $decoded->authorization_details[0]->actions);
+        $this->assertSame('*', $decoded->authorization_details[0]->topics[0]->match);
     }
 
     /**
@@ -39,14 +44,17 @@ class FirebaseTokenFactoryTest extends TestCase
      */
     public function testCreateWithSubscribeClaims(): void
     {
-        $factory = new FirebaseTokenFactory($this->secret);
-        $subscribe = ['https://example.com/books/{id}'];
+        $factory = new FirebaseTokenFactory($this->secret, defaultClaims: $this->claims);
+        $subscribe = ['https://example.com/books/1'];
         $token = $factory->create($subscribe, []);
 
         $decoded = JWT::decode($token, new Key($this->secret, 'HS256'));
-        $this->assertObjectHasProperty('mercure', $decoded);
-        $this->assertObjectHasProperty('subscribe', $decoded->mercure);
-        $this->assertSame($subscribe, $decoded->mercure->subscribe);
+        $this->assertObjectHasProperty('authorization_details', $decoded);
+        $this->assertSame(['subscribe'], $decoded->authorization_details[0]->actions);
+        $this->assertSame(
+            $subscribe,
+            array_column($decoded->authorization_details[0]->topics, 'match'),
+        );
     }
 
     /**
@@ -54,17 +62,20 @@ class FirebaseTokenFactoryTest extends TestCase
      */
     public function testCreateWithPublishAndSubscribeClaims(): void
     {
-        $factory = new FirebaseTokenFactory($this->secret);
-        $publish = ['https://example.com/feeds/{id}'];
-        $subscribe = ['https://example.com/books/{id}'];
+        $factory = new FirebaseTokenFactory($this->secret, defaultClaims: $this->claims);
+        $publish = ['https://example.com/feeds/1'];
+        $subscribe = ['https://example.com/books/1'];
         $token = $factory->create($subscribe, $publish);
 
         $decoded = JWT::decode($token, new Key($this->secret, 'HS256'));
-        $this->assertObjectHasProperty('mercure', $decoded);
-        $this->assertObjectHasProperty('publish', $decoded->mercure);
-        $this->assertObjectHasProperty('subscribe', $decoded->mercure);
-        $this->assertSame($publish, $decoded->mercure->publish);
-        $this->assertSame($subscribe, $decoded->mercure->subscribe);
+        $this->assertObjectHasProperty('authorization_details', $decoded);
+        $this->assertSame(['publish'], $decoded->authorization_details[0]->actions);
+        $this->assertSame(['subscribe'], $decoded->authorization_details[1]->actions);
+        $this->assertSame($publish, array_column($decoded->authorization_details[0]->topics, 'match'));
+        $this->assertSame(
+            $subscribe,
+            array_column($decoded->authorization_details[1]->topics, 'match'),
+        );
     }
 
     /**
@@ -72,7 +83,7 @@ class FirebaseTokenFactoryTest extends TestCase
      */
     public function testCreateWithAdditionalClaims(): void
     {
-        $factory = new FirebaseTokenFactory($this->secret);
+        $factory = new FirebaseTokenFactory($this->secret, defaultClaims: $this->claims);
         $additionalClaims = [
             'iss' => 'test-issuer',
             'sub' => 'test-subject',
@@ -81,7 +92,7 @@ class FirebaseTokenFactoryTest extends TestCase
         $token = $factory->create([], ['*'], $additionalClaims);
 
         $decoded = JWT::decode($token, new Key($this->secret, 'HS256'));
-        $this->assertObjectHasProperty('mercure', $decoded);
+        $this->assertObjectHasProperty('authorization_details', $decoded);
         $this->assertObjectHasProperty('iss', $decoded);
         $this->assertObjectHasProperty('sub', $decoded);
         $this->assertObjectHasProperty('exp', $decoded);
@@ -94,14 +105,12 @@ class FirebaseTokenFactoryTest extends TestCase
      */
     public function testCreateWithEmptyClaims(): void
     {
-        $factory = new FirebaseTokenFactory($this->secret);
+        $factory = new FirebaseTokenFactory($this->secret, defaultClaims: $this->claims);
         $token = $factory->create([], []);
 
         $decoded = JWT::decode($token, new Key($this->secret, 'HS256'));
-        $this->assertObjectHasProperty('mercure', $decoded);
-        $this->assertIsArray($decoded->mercure);
-        $this->assertArrayNotHasKey('publish', $decoded->mercure);
-        $this->assertArrayNotHasKey('subscribe', $decoded->mercure);
+        $this->assertObjectHasProperty('authorization_details', $decoded);
+        $this->assertSame([], $decoded->authorization_details);
     }
 
     /**
@@ -109,14 +118,12 @@ class FirebaseTokenFactoryTest extends TestCase
      */
     public function testCreateWithNullClaims(): void
     {
-        $factory = new FirebaseTokenFactory($this->secret);
+        $factory = new FirebaseTokenFactory($this->secret, defaultClaims: $this->claims);
         $token = $factory->create(null, null);
 
         $decoded = JWT::decode($token, new Key($this->secret, 'HS256'));
-        $this->assertObjectHasProperty('mercure', $decoded);
-        $this->assertIsArray($decoded->mercure);
-        $this->assertArrayNotHasKey('publish', $decoded->mercure);
-        $this->assertArrayNotHasKey('subscribe', $decoded->mercure);
+        $this->assertObjectHasProperty('authorization_details', $decoded);
+        $this->assertSame([], $decoded->authorization_details);
     }
 
     /**
@@ -125,12 +132,12 @@ class FirebaseTokenFactoryTest extends TestCase
     public function testCreateWithDifferentAlgorithm(): void
     {
         $secret = 'a-longer-secret-key-for-hs384-algorithm-testing!!!!';
-        $factory = new FirebaseTokenFactory($secret, 'HS384');
+        $factory = new FirebaseTokenFactory($secret, 'HS384', $this->claims);
         $token = $factory->create([], ['*']);
 
         $decoded = JWT::decode($token, new Key($secret, 'HS384'));
-        $this->assertObjectHasProperty('mercure', $decoded);
-        $this->assertObjectHasProperty('publish', $decoded->mercure);
+        $this->assertObjectHasProperty('authorization_details', $decoded);
+        $this->assertSame(['publish'], $decoded->authorization_details[0]->actions);
     }
 
     /**
@@ -138,7 +145,7 @@ class FirebaseTokenFactoryTest extends TestCase
      */
     public function testMultipleTokensAreDifferent(): void
     {
-        $factory = new FirebaseTokenFactory($this->secret);
+        $factory = new FirebaseTokenFactory($this->secret, defaultClaims: $this->claims);
         $token1 = $factory->create([], ['topic1']);
         $token2 = $factory->create([], ['topic2']);
 
@@ -147,8 +154,8 @@ class FirebaseTokenFactoryTest extends TestCase
         $decoded1 = JWT::decode($token1, new Key($this->secret, 'HS256'));
         $decoded2 = JWT::decode($token2, new Key($this->secret, 'HS256'));
 
-        $this->assertSame(['topic1'], $decoded1->mercure->publish);
-        $this->assertSame(['topic2'], $decoded2->mercure->publish);
+        $this->assertSame(['topic1'], array_column($decoded1->authorization_details[0]->topics, 'match'));
+        $this->assertSame(['topic2'], array_column($decoded2->authorization_details[0]->topics, 'match'));
     }
 
     /**
@@ -156,7 +163,7 @@ class FirebaseTokenFactoryTest extends TestCase
      */
     public function testCreateWithMultipleTopics(): void
     {
-        $factory = new FirebaseTokenFactory($this->secret);
+        $factory = new FirebaseTokenFactory($this->secret, defaultClaims: $this->claims);
         $publish = [
             'https://example.com/feeds/{id}',
             'https://example.com/books/{id}',
@@ -168,8 +175,11 @@ class FirebaseTokenFactoryTest extends TestCase
         $token = $factory->create($subscribe, $publish);
 
         $decoded = JWT::decode($token, new Key($this->secret, 'HS256'));
-        $this->assertSame($publish, $decoded->mercure->publish);
-        $this->assertSame($subscribe, $decoded->mercure->subscribe);
+        $this->assertSame($publish, array_column($decoded->authorization_details[0]->topics, 'match'));
+        $this->assertSame(
+            $subscribe,
+            array_column($decoded->authorization_details[1]->topics, 'match'),
+        );
     }
 
     /**

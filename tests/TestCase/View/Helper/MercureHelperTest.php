@@ -38,6 +38,7 @@ class MercureHelperTest extends TestCase
             'jwt' => [
                 'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
+                'additional_claims' => ['iss' => 'issuer', 'sub' => 'app', 'client_id' => 'tests'],
             ],
         ]);
 
@@ -85,7 +86,7 @@ class MercureHelperTest extends TestCase
     public function testUrlWithSingleTopic(): void
     {
         $url = $this->helper->url(['/feeds/123']);
-        $expected = 'https://mercure.example.com/.well-known/mercure?topic=' . urlencode('/feeds/123');
+        $expected = 'https://mercure.example.com/.well-known/mercure?match=' . urlencode('/feeds/123');
 
         $this->assertEquals($expected, $url);
     }
@@ -98,7 +99,7 @@ class MercureHelperTest extends TestCase
         $url = $this->helper->url(['/feeds/123', '/notifications/*']);
         $expectedTopic1 = urlencode('/feeds/123');
         $expectedTopic2 = urlencode('/notifications/*');
-        $expected = 'https://mercure.example.com/.well-known/mercure?topic=' . $expectedTopic1 . '&topic=' . $expectedTopic2;
+        $expected = 'https://mercure.example.com/.well-known/mercure?match=' . $expectedTopic1 . '&match=' . $expectedTopic2;
 
         $this->assertEquals($expected, $url);
     }
@@ -112,7 +113,7 @@ class MercureHelperTest extends TestCase
 
         $url = $this->helper->url(['/feeds/123']);
         $this->assertStringContainsString('existing=param', $url);
-        $this->assertStringContainsString('&topic=', $url);
+        $this->assertStringContainsString('&match=', $url);
     }
 
     /**
@@ -160,7 +161,7 @@ class MercureHelperTest extends TestCase
 
         $url = $this->helper->url(['/feeds/123']);
         $this->assertStringContainsString('https://public.example.com', $url);
-        $this->assertStringContainsString('topic=' . urlencode('/feeds/123'), $url);
+        $this->assertStringContainsString('match=' . urlencode('/feeds/123'), $url);
     }
 
     /**
@@ -178,7 +179,7 @@ class MercureHelperTest extends TestCase
     public function testUrlWithSingleTopicAsString(): void
     {
         $url = $this->helper->url('/feeds/123');
-        $expected = 'https://mercure.example.com/.well-known/mercure?topic=' . urlencode('/feeds/123');
+        $expected = 'https://mercure.example.com/.well-known/mercure?match=' . urlencode('/feeds/123');
 
         $this->assertEquals($expected, $url);
     }
@@ -189,7 +190,7 @@ class MercureHelperTest extends TestCase
     public function testUrlWithSingleTopicAsArray(): void
     {
         $url = $this->helper->url(['/feeds/123']);
-        $expected = 'https://mercure.example.com/.well-known/mercure?topic=' . urlencode('/feeds/123');
+        $expected = 'https://mercure.example.com/.well-known/mercure?match=' . urlencode('/feeds/123');
 
         $this->assertEquals($expected, $url);
     }
@@ -202,7 +203,7 @@ class MercureHelperTest extends TestCase
         $url = $this->helper->url(['/feeds/123', '/notifications/*']);
         $expectedTopic1 = urlencode('/feeds/123');
         $expectedTopic2 = urlencode('/notifications/*');
-        $expected = 'https://mercure.example.com/.well-known/mercure?topic=' . $expectedTopic1 . '&topic=' . $expectedTopic2;
+        $expected = 'https://mercure.example.com/.well-known/mercure?match=' . $expectedTopic1 . '&match=' . $expectedTopic2;
 
         $this->assertEquals($expected, $url);
     }
@@ -239,9 +240,9 @@ class MercureHelperTest extends TestCase
         $url = $helper->url(['/books/123']);
 
         // Should contain all topics
-        $this->assertStringContainsString('topic=%2Fnotifications', $url);
-        $this->assertStringContainsString('topic=%2Falerts', $url);
-        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+        $this->assertStringContainsString('match=%2Fnotifications', $url);
+        $this->assertStringContainsString('match=%2Falerts', $url);
+        $this->assertStringContainsString('match=%2Fbooks%2F123', $url);
     }
 
     /**
@@ -255,8 +256,8 @@ class MercureHelperTest extends TestCase
 
         $url = $helper->url(['/books/123']);
 
-        $this->assertStringContainsString('topic=%2Fnotifications', $url);
-        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+        $this->assertStringContainsString('match=%2Fnotifications', $url);
+        $this->assertStringContainsString('match=%2Fbooks%2F123', $url);
     }
 
     /**
@@ -272,12 +273,12 @@ class MercureHelperTest extends TestCase
         $url = $helper->url(['/notifications', '/books/123']);
 
         // Count occurrences of /notifications - should appear only once
-        $count = substr_count($url, 'topic=%2Fnotifications');
+        $count = substr_count($url, 'match=%2Fnotifications');
         $this->assertEquals(1, $count, 'Duplicate topics should be removed');
 
         // Other topics should still be present
-        $this->assertStringContainsString('topic=%2Falerts', $url);
-        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+        $this->assertStringContainsString('match=%2Falerts', $url);
+        $this->assertStringContainsString('match=%2Fbooks%2F123', $url);
     }
 
     /**
@@ -310,7 +311,7 @@ class MercureHelperTest extends TestCase
     public function testHelperWorksWithoutDefaultTopics(): void
     {
         $url = $this->helper->url(['/feeds/123']);
-        $expected = 'https://mercure.example.com/.well-known/mercure?topic=' . urlencode('/feeds/123');
+        $expected = 'https://mercure.example.com/.well-known/mercure?match=' . urlencode('/feeds/123');
 
         $this->assertEquals($expected, $url);
     }
@@ -323,7 +324,7 @@ class MercureHelperTest extends TestCase
         $this->helper->addTopic('/user/123/messages');
 
         $url = $this->helper->url();
-        $this->assertStringContainsString('topic=%2Fuser%2F123%2Fmessages', $url);
+        $this->assertStringContainsString('match=%2Fuser%2F123%2Fmessages', $url);
     }
 
     /**
@@ -335,7 +336,7 @@ class MercureHelperTest extends TestCase
         $this->helper->addTopic('/notifications');
 
         $url = $this->helper->url();
-        $count = substr_count($url, 'topic=%2Fnotifications');
+        $count = substr_count($url, 'match=%2Fnotifications');
         $this->assertEquals(1, $count);
     }
 
@@ -360,9 +361,9 @@ class MercureHelperTest extends TestCase
 
         $url = $this->helper->url();
 
-        $this->assertStringContainsString('topic=%2Fnotifications', $url);
-        $this->assertStringContainsString('topic=%2Falerts', $url);
-        $this->assertStringContainsString('topic=%2Fmessages', $url);
+        $this->assertStringContainsString('match=%2Fnotifications', $url);
+        $this->assertStringContainsString('match=%2Falerts', $url);
+        $this->assertStringContainsString('match=%2Fmessages', $url);
     }
 
     /**
@@ -374,8 +375,8 @@ class MercureHelperTest extends TestCase
 
         $url = $this->helper->url();
 
-        $this->assertStringContainsString('topic=%2Fbooks%2F456', $url);
-        $this->assertStringContainsString('topic=%2Fcomments%2F789', $url);
+        $this->assertStringContainsString('match=%2Fbooks%2F456', $url);
+        $this->assertStringContainsString('match=%2Fcomments%2F789', $url);
     }
 
     /**
@@ -388,11 +389,11 @@ class MercureHelperTest extends TestCase
 
         $url = $this->helper->url();
 
-        $count = substr_count($url, 'topic=%2Fnotifications');
+        $count = substr_count($url, 'match=%2Fnotifications');
         $this->assertEquals(1, $count);
 
-        $this->assertStringContainsString('topic=%2Falerts', $url);
-        $this->assertStringContainsString('topic=%2Fmessages', $url);
+        $this->assertStringContainsString('match=%2Falerts', $url);
+        $this->assertStringContainsString('match=%2Fmessages', $url);
     }
 
     /**
@@ -417,8 +418,8 @@ class MercureHelperTest extends TestCase
 
         $url = $helper->url();
 
-        $this->assertStringContainsString('topic=%2Fnotifications', $url);
-        $this->assertStringContainsString('topic=%2Fmessages', $url);
+        $this->assertStringContainsString('match=%2Fnotifications', $url);
+        $this->assertStringContainsString('match=%2Fmessages', $url);
     }
 
     /**
@@ -430,8 +431,8 @@ class MercureHelperTest extends TestCase
 
         $url = $this->helper->url(['/books/123']);
 
-        $this->assertStringContainsString('topic=%2Fnotifications', $url);
-        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+        $this->assertStringContainsString('match=%2Fnotifications', $url);
+        $this->assertStringContainsString('match=%2Fbooks%2F123', $url);
     }
 
     /**
@@ -443,9 +444,9 @@ class MercureHelperTest extends TestCase
 
         $url = $this->helper->url(['/books/123']);
 
-        $this->assertStringContainsString('topic=%2Fnotifications', $url);
-        $this->assertStringContainsString('topic=%2Falerts', $url);
-        $this->assertStringContainsString('topic=%2Fbooks%2F123', $url);
+        $this->assertStringContainsString('match=%2Fnotifications', $url);
+        $this->assertStringContainsString('match=%2Falerts', $url);
+        $this->assertStringContainsString('match=%2Fbooks%2F123', $url);
     }
 
     /**
@@ -501,7 +502,7 @@ class MercureHelperTest extends TestCase
         $helper = new MercureHelper($this->view);
 
         $url = $helper->url();
-        $this->assertStringContainsString('topic=%2Fcomponent%2Ftopic', $url);
+        $this->assertStringContainsString('match=%2Fcomponent%2Ftopic', $url);
     }
 
     /**
@@ -517,8 +518,8 @@ class MercureHelperTest extends TestCase
 
         $url = $helper->url();
 
-        $this->assertStringContainsString('topic=%2Fcomponent%2Ftopic', $url);
-        $this->assertStringContainsString('topic=%2Fhelper%2Ftopic', $url);
+        $this->assertStringContainsString('match=%2Fcomponent%2Ftopic', $url);
+        $this->assertStringContainsString('match=%2Fhelper%2Ftopic', $url);
     }
 
     /**
@@ -531,7 +532,7 @@ class MercureHelperTest extends TestCase
         ]);
 
         $url = $helper->url();
-        $this->assertStringContainsString('topic=%2Fhelper%2Ftopic', $url);
+        $this->assertStringContainsString('match=%2Fhelper%2Ftopic', $url);
     }
 
     /**
@@ -544,7 +545,7 @@ class MercureHelperTest extends TestCase
         $helper = new MercureHelper($this->view);
 
         $url = $helper->url(['/test']);
-        $this->assertStringContainsString('topic=%2Ftest', $url);
+        $this->assertStringContainsString('match=%2Ftest', $url);
     }
 
     /**
@@ -557,7 +558,7 @@ class MercureHelperTest extends TestCase
         $helper = new MercureHelper($this->view);
 
         $url = $helper->url();
-        $count = substr_count($url, 'topic=%2Fnotifications');
+        $count = substr_count($url, 'match=%2Fnotifications');
         $this->assertEquals(1, $count);
     }
 
@@ -581,9 +582,9 @@ class MercureHelperTest extends TestCase
         $url = $helper->url(['/url/topic']);
 
         // All should be present
-        $this->assertStringContainsString('topic=%2Fcomponent%2Ftopic', $url);
-        $this->assertStringContainsString('topic=%2Fhelper%2Ftopic', $url);
-        $this->assertStringContainsString('topic=%2Fdynamic%2Ftopic', $url);
-        $this->assertStringContainsString('topic=%2Furl%2Ftopic', $url);
+        $this->assertStringContainsString('match=%2Fcomponent%2Ftopic', $url);
+        $this->assertStringContainsString('match=%2Fhelper%2Ftopic', $url);
+        $this->assertStringContainsString('match=%2Fdynamic%2Ftopic', $url);
+        $this->assertStringContainsString('match=%2Furl%2Ftopic', $url);
     }
 }

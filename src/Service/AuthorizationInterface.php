@@ -18,7 +18,7 @@ interface AuthorizationInterface
      * Create and set the authorization cookie on the response
      *
      * @param \Cake\Http\Response $response The response object to modify
-     * @param array<string> $subscribe Array of topics the subscriber can access
+     * @param array<string|array{match: string, match_type?: string}> $subscribe Array of topics the subscriber can access
      * @param array<string, mixed> $additionalClaims Additional JWT claims to include
      * @return \Cake\Http\Response Modified response with cookie set
      * @throws \Mercure\Exception\MercureException

@@ -16,8 +16,8 @@ class FactoryTokenProvider implements TokenProviderInterface
      * Constructor
      *
      * @param \Mercure\Jwt\TokenFactoryInterface $factory The token factory to use
-     * @param array<string> $publish List of topic selectors to allow publishing to
-     * @param array<string> $subscribe List of topic selectors to allow subscribing to
+     * @param array<string|array{match: string, match_type?: string}> $publish List of topic selectors to allow publishing to
+     * @param array<string|array{match: string, match_type?: string}> $subscribe List of topic selectors to allow subscribing to
      * @param array<string, mixed> $additionalClaims Additional claims to include in the JWT
      */
     public function __construct(

@@ -22,7 +22,7 @@ use Mercure\Service\AuthorizationService;
  * Example usage:
  * ```
  * // In a controller
- * $response = Authorization::setCookie($response, ['/feeds/123', '/notifications/*']);
+ * $response = Authorization::setCookie($response, ['/feeds/123', '/notifications']);
  *
  * // Clear authorization
  * $response = Authorization::clearCookie($response);
@@ -76,7 +76,11 @@ class Authorization
                 }
             }
 
-            self::$instance = new AuthorizationService($factory, $cookieConfig);
+            self::$instance = new AuthorizationService(
+                $factory,
+                $cookieConfig,
+                ConfigurationHelper::getJwtDefaultClaims(),
+            );
         }
 
         return self::$instance;
@@ -106,7 +110,7 @@ class Authorization
      * Create and set the authorization cookie on the response
      *
      * @param \Cake\Http\Response $response The response object to modify
-     * @param array<string> $subscribe Array of topics the subscriber can access
+     * @param array<string|array{match: string, match_type?: string}> $subscribe Array of topics the subscriber can access
      * @param array<string, mixed> $additionalClaims Additional JWT claims to include
      * @return \Cake\Http\Response Modified response with cookie set
      * @throws \Mercure\Exception\MercureException

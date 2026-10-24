@@ -39,6 +39,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
             'jwt' => [
                 'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
+                'additional_claims' => ['iss' => 'issuer', 'sub' => 'app', 'client_id' => 'tests'],
             ],
         ]);
 
@@ -131,6 +132,7 @@ class MercureDiscoveryMiddlewareTest extends TestCase
             'jwt' => [
                 'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
+                'additional_claims' => ['iss' => 'issuer', 'sub' => 'app', 'client_id' => 'tests'],
             ],
         ]);
         Authorization::clear();

@@ -36,7 +36,7 @@ class AuthorizationServiceTest extends TestCase
             'public_url' => 'https://public.mercure.example.com/.well-known/mercure',
         ]);
 
-        $this->tokenFactory = new FirebaseTokenFactory('test-secret-key-with-32-bytes-minimum!!', 'HS256');
+        $this->tokenFactory = new FirebaseTokenFactory('test-secret-key-with-32-bytes-minimum!!', 'HS256', defaultClaims: ['iss' => 'issuer', 'aud' => 'hub', 'sub' => 'app', 'client_id' => 'tests']);
         $this->service = new AuthorizationService($this->tokenFactory, [
             'name' => 'testAuth',
             'expires' => null,
@@ -65,11 +65,11 @@ class AuthorizationServiceTest extends TestCase
         $service = new AuthorizationService($this->tokenFactory);
         $config = $service->getCookieConfig();
 
-        $this->assertEquals('mercureAuthorization', $config['name']);
+        $this->assertEquals('__Secure-mercure_access_token', $config['name']);
         $this->assertNull($config['expires']);
         $this->assertNull($config['lifetime']);
         $this->assertEquals('/', $config['path']);
-        $this->assertFalse($config['secure']);
+        $this->assertTrue($config['secure']);
         $this->assertTrue($config['httponly']);
         $this->assertEquals(CookieInterface::SAMESITE_STRICT, $config['samesite']);
         $this->assertNull($config['domain']);
