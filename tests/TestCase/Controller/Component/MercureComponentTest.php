@@ -49,6 +49,7 @@ class MercureComponentTest extends TestCase
             'jwt' => [
                 'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
+                'additional_claims' => ['iss' => 'issuer', 'sub' => 'app', 'client_id' => 'tests'],
             ],
             'cookie' => [
                 'name' => 'mercureAuth',
@@ -1167,8 +1168,8 @@ class MercureComponentTest extends TestCase
 
         $this->assertNotNull($selfHeader);
         $this->assertNotNull($mercureHeader);
-        $this->assertStringContainsString('topic=%2Fbooks%2F123', $selfHeader);
-        $this->assertStringContainsString('topic=%2Fnotifications%2F%2A', $selfHeader);
+        $this->assertStringContainsString('match=%2Fbooks%2F123', $selfHeader);
+        $this->assertStringContainsString('match=%2Fnotifications%2F%2A', $selfHeader);
     }
 
     /**
@@ -1229,7 +1230,7 @@ class MercureComponentTest extends TestCase
         foreach ($linkHeaders as $header) {
             if (str_contains($header, 'rel="self"')) {
                 $selfHeaderFound = true;
-                $this->assertStringContainsString('topic=%2Fbooks%2F123', $header);
+                $this->assertStringContainsString('match=%2Fbooks%2F123', $header);
             }
         }
 
@@ -1328,7 +1329,7 @@ class MercureComponentTest extends TestCase
         foreach ($linkHeaders as $header) {
             if (str_contains($header, 'rel="self"')) {
                 $selfHeaderFound = true;
-                $this->assertStringContainsString('topic=%2Fbooks%2F123', $header);
+                $this->assertStringContainsString('match=%2Fbooks%2F123', $header);
             }
 
             if (str_contains($header, 'rel="mercure"')) {

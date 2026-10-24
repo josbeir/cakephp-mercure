@@ -6,6 +6,7 @@ namespace Mercure\View\Helper;
 use Cake\View\Helper;
 use Mercure\Internal\ConfigurationHelper;
 use Mercure\Internal\SubscriptionUrlBuilder;
+use Mercure\Internal\TopicMatcher;
 use Mercure\TopicManagementTrait;
 
 /**
@@ -87,8 +88,8 @@ class MercureHelper extends Helper
     /**
      * Merge provided topics with helper's topics (removing duplicates)
      *
-     * @param array<string> $topics Provided topics
-     * @return array<string>
+     * @param array<string|array{match: string, match_type?: string}> $topics Provided topics
+     * @return array<string|array{match: string, match_type?: string}>
      */
     protected function mergeTopics(array $topics): array
     {
@@ -96,7 +97,7 @@ class MercureHelper extends Helper
             return $topics;
         }
 
-        return array_values(array_unique(array_merge($this->topics, $topics)));
+        return TopicMatcher::unique(array_merge($this->topics, $topics));
     }
 
     /**
@@ -104,7 +105,7 @@ class MercureHelper extends Helper
      *
      * Default topics (if configured) will be automatically merged with provided topics.
      *
-     * @param array<string>|string|null $topics Topics to subscribe to (can be array of topics or single topic)
+     * @param array<string|array{match: string, match_type?: string}>|string|null $topics Topics to subscribe to (can be array of topics or single topic)
      * @return string Hub URL with optional topic query parameters
      * @throws \Mercure\Exception\MercureException
      */

@@ -15,16 +15,16 @@ trait TopicManagementTrait
     /**
      * Runtime topics
      *
-     * @var array<string>
+     * @var array<string|array{match: string, match_type?: string}>
      */
     protected array $topics = [];
 
     /**
      * Add a single topic
      *
-     * @param string $topic Topic to add
+     * @param array{match: string, match_type?: string}|string $topic Topic to add
      */
-    public function addTopic(string $topic): static
+    public function addTopic(string|array $topic): static
     {
         if (!in_array($topic, $this->topics, true)) {
             $this->topics[] = $topic;
@@ -36,7 +36,7 @@ trait TopicManagementTrait
     /**
      * Add multiple topics
      *
-     * @param array<string> $topics Topics to add
+     * @param array<string|array{match: string, match_type?: string}> $topics Topics to add
      */
     public function addTopics(array $topics): static
     {
@@ -50,7 +50,7 @@ trait TopicManagementTrait
     /**
      * Get all topics
      *
-     * @return array<string> List of topics
+     * @return array<string|array{match: string, match_type?: string}> List of topics
      */
     public function getTopics(): array
     {

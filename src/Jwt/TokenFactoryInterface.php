@@ -17,8 +17,8 @@ interface TokenFactoryInterface
      * Creates a token that allows publishing to $publish topics and subscribing to $subscribe topics.
      * The token structure follows the Mercure protocol specification.
      *
-     * @param array<string>|null $subscribe List of topic selectors to allow subscribing to
-     * @param array<string>|null $publish List of topic selectors to allow publishing to
+     * @param array<string|array{match: string, match_type?: string}>|null $subscribe List of topic selectors to allow subscribing to
+     * @param array<string|array{match: string, match_type?: string}>|null $publish List of topic selectors to allow publishing to
      * @param array<string, mixed> $additionalClaims Additional claims to include in the JWT payload
      * @return string The generated JWT token
      */

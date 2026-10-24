@@ -8,6 +8,7 @@ use Cake\Event\EventInterface;
 use Mercure\Authorization;
 use Mercure\Internal\ConfigurationHelper;
 use Mercure\Internal\SubscriptionUrlBuilder;
+use Mercure\Internal\TopicMatcher;
 use Mercure\Publisher;
 use Mercure\Service\AuthorizationInterface;
 use Mercure\Service\PublisherInterface;
@@ -43,7 +44,7 @@ use Mercure\Update\ViewUpdate;
  *     // Fluent authorization with builder pattern
  *     $this->Mercure
  *         ->addSubscribe("/books/{$id}", ['sub' => $userId])
- *         ->addSubscribe("/notifications/*", ['role' => 'user'])
+ *         ->addSubscribe("/notifications", ['role' => 'user'])
  *         ->authorize()
  *         ->discover();
  *
@@ -110,14 +111,14 @@ class MercureComponent extends Component
     /**
      * Subscribe topics accumulated via addSubscribe()
      *
-     * @var array<string>
+     * @var array<string|array{match: string, match_type?: string}>
      */
     protected array $subscribe = [];
 
     /**
      * Last authorized subscribe topics (preserved for discovery)
      *
-     * @var array<string>
+     * @var array<string|array{match: string, match_type?: string}>
      */
     protected array $lastAuthorizedTopics = [];
 
@@ -199,15 +200,15 @@ class MercureComponent extends Component
      * // Build up gradually
      * $this->Mercure
      *     ->addSubscribe('/books/123', ['sub' => $userId])
-     *     ->addSubscribe('/notifications/*', ['role' => 'admin'])
+     *     ->addSubscribe('/notifications', ['role' => 'admin'])
      *     ->authorize();
      * ```
      *
-     * @param string $topic Topic pattern (e.g., '/books/123', '/notifications/*')
+     * @param array{match: string, match_type?: string}|string $topic Topic pattern (e.g., '/books/123', '/notifications')
      * @param array<string, mixed> $additionalClaims JWT claims to merge
      * @return $this For method chaining
      */
-    public function addSubscribe(string $topic, array $additionalClaims = []): static
+    public function addSubscribe(string|array $topic, array $additionalClaims = []): static
     {
         $this->subscribe[] = $topic;
         $this->additionalClaims = array_merge($this->additionalClaims, $additionalClaims);
@@ -224,16 +225,16 @@ class MercureComponent extends Component
      * Example:
      * ```
      * // Topics only
-     * $this->Mercure->addSubscribes(['/books/123', '/notifications/*']);
+     * $this->Mercure->addSubscribes(['/books/123', '/notifications']);
      *
      * // Topics with claims
      * $this->Mercure->addSubscribes(
-     *     ['/books/123', '/notifications/*'],
+     *     ['/books/123', '/notifications'],
      *     ['sub' => $userId, 'role' => 'admin']
      * );
      * ```
      *
-     * @param array<string> $topics Array of topic patterns
+     * @param array<string|array{match: string, match_type?: string}> $topics Array of topic patterns
      * @param array<string, mixed> $additionalClaims JWT claims to merge
      * @return $this For method chaining
      */
@@ -248,7 +249,7 @@ class MercureComponent extends Component
     /**
      * Get accumulated subscribe topics
      *
-     * @return array<string>
+     * @return array<string|array{match: string, match_type?: string}>
      */
     public function getSubscribe(): array
     {
@@ -303,7 +304,7 @@ class MercureComponent extends Component
      * Example:
      * ```
      * // Direct parameters (backward compatible)
-     * $this->Mercure->authorize(['/feeds/123', '/notifications/*']);
+     * $this->Mercure->authorize(['/feeds/123', '/notifications']);
      *
      * // With additional JWT claims
      * $this->Mercure->authorize(
@@ -319,7 +320,7 @@ class MercureComponent extends Component
      * // Mixed (parameters merged with accumulated)
      * $this->Mercure
      *     ->addSubscribe('/books/123')
-     *     ->authorize(['/notifications/*'], ['sub' => $userId]);
+     *     ->authorize(['/notifications'], ['sub' => $userId]);
      *
      * // Chain with topics and discovery
      * $this->Mercure
@@ -329,7 +330,7 @@ class MercureComponent extends Component
      *     ->discover();
      * ```
      *
-     * @param array<string> $subscribe Topics the subscriber can access (merged with addSubscribe())
+     * @param array<string|array{match: string, match_type?: string}> $subscribe Topics the subscriber can access (merged with addSubscribe())
      * @param array<string, mixed> $additionalClaims Additional JWT claims to include (merged with accumulated claims)
      * @return $this For method chaining
      * @throws \Mercure\Exception\MercureException
@@ -337,7 +338,7 @@ class MercureComponent extends Component
     public function authorize(array $subscribe = [], array $additionalClaims = []): static
     {
         // Merge parameter topics with accumulated topics
-        $allSubscribe = array_unique(array_merge($this->subscribe, $subscribe));
+        $allSubscribe = TopicMatcher::unique(array_merge($this->subscribe, $subscribe));
 
         // Merge parameter claims with accumulated claims (parameters take precedence)
         $allClaims = array_merge($this->additionalClaims, $additionalClaims);
