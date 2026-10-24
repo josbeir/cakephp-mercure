@@ -35,7 +35,7 @@ class SubscriptionUrlBuilderTest extends TestCase
         $result = SubscriptionUrlBuilder::build($hubUrl, $topics);
 
         $this->assertEquals(
-            'https://hub.example.com/.well-known/mercure?topic=%2Fbooks%2F123',
+            'https://hub.example.com/.well-known/mercure?match=%2Fbooks%2F123',
             $result,
         );
     }
@@ -51,7 +51,7 @@ class SubscriptionUrlBuilderTest extends TestCase
         $result = SubscriptionUrlBuilder::build($hubUrl, $topics);
 
         $this->assertEquals(
-            'https://hub.example.com/.well-known/mercure?topic=%2Fbooks%2F123&topic=%2Fnotifications%2F%2A&topic=%2Fuser%2F456',
+            'https://hub.example.com/.well-known/mercure?match=%2Fbooks%2F123&match=%2Fnotifications%2F%2A&match=%2Fuser%2F456',
             $result,
         );
     }
@@ -66,8 +66,8 @@ class SubscriptionUrlBuilderTest extends TestCase
 
         $result = SubscriptionUrlBuilder::build($hubUrl, $topics);
 
-        $this->assertStringContainsString('topic=%2Fbooks%2F%7Bid%7D', $result);
-        $this->assertStringContainsString('topic=%2Fuser%3Fstatus%3Dactive', $result);
+        $this->assertStringContainsString('match=%2Fbooks%2F%7Bid%7D', $result);
+        $this->assertStringContainsString('match=%2Fuser%3Fstatus%3Dactive', $result);
     }
 
     /**
@@ -81,7 +81,7 @@ class SubscriptionUrlBuilderTest extends TestCase
         $result = SubscriptionUrlBuilder::build($hubUrl, $topics);
 
         $this->assertEquals(
-            'https://hub.example.com/.well-known/mercure?existing=param&topic=%2Fbooks%2F123',
+            'https://hub.example.com/.well-known/mercure?existing=param&match=%2Fbooks%2F123',
             $result,
         );
     }
@@ -94,15 +94,15 @@ class SubscriptionUrlBuilderTest extends TestCase
         $hubUrl = 'https://hub.example.com/.well-known/mercure';
         $topics = ['/books/123'];
         $options = [
-            'lastEventID' => 'urn:uuid:abc-123',
-            'authorization' => 'Bearer token',
+            'last_event_id' => 'urn:uuid:abc-123',
+            'custom' => 'custom value',
         ];
 
         $result = SubscriptionUrlBuilder::build($hubUrl, $topics, $options);
 
-        $this->assertStringContainsString('topic=%2Fbooks%2F123', $result);
-        $this->assertStringContainsString('lastEventID=urn%3Auuid%3Aabc-123', $result);
-        $this->assertStringContainsString('authorization=Bearer+token', $result);
+        $this->assertStringContainsString('match=%2Fbooks%2F123', $result);
+        $this->assertStringContainsString('last_event_id=urn%3Auuid%3Aabc-123', $result);
+        $this->assertStringContainsString('custom=custom+value', $result);
     }
 
     /**
@@ -131,14 +131,14 @@ class SubscriptionUrlBuilderTest extends TestCase
         $hubUrl = 'https://hub.example.com/.well-known/mercure';
         $topics = ['/books/123', '/notifications/*'];
         $options = [
-            'lastEventID' => 'urn:uuid:xyz',
+            'last_event_id' => 'urn:uuid:xyz',
         ];
 
         $result = SubscriptionUrlBuilder::build($hubUrl, $topics, $options);
 
-        $this->assertStringContainsString('topic=%2Fbooks%2F123', $result);
-        $this->assertStringContainsString('topic=%2Fnotifications%2F%2A', $result);
-        $this->assertStringContainsString('lastEventID=urn%3Auuid%3Axyz', $result);
+        $this->assertStringContainsString('match=%2Fbooks%2F123', $result);
+        $this->assertStringContainsString('match=%2Fnotifications%2F%2A', $result);
+        $this->assertStringContainsString('last_event_id=urn%3Auuid%3Axyz', $result);
     }
 
     /**
@@ -163,7 +163,7 @@ class SubscriptionUrlBuilderTest extends TestCase
         $result = SubscriptionUrlBuilder::build($hubUrl, $topics);
 
         $this->assertStringContainsString(
-            'topic=https%3A%2F%2Fexample.com%2Fbooks%2F%7Bid%7D',
+            'match=https%3A%2F%2Fexample.com%2Fbooks%2F%7Bid%7D',
             $result,
         );
     }
@@ -179,7 +179,7 @@ class SubscriptionUrlBuilderTest extends TestCase
         $result = SubscriptionUrlBuilder::build($hubUrl, $topics);
 
         $this->assertEquals(
-            'https://hub.example.com/.well-known/mercure?topic=%2A',
+            'https://hub.example.com/.well-known/mercure?match=%2A',
             $result,
         );
     }
@@ -214,7 +214,7 @@ class SubscriptionUrlBuilderTest extends TestCase
         $result = SubscriptionUrlBuilder::build($hubUrl, $topics, $options);
 
         // Topics should come before options
-        $topicPos = strpos($result, 'topic=%2Ffirst');
+        $topicPos = strpos($result, 'match=%2Ffirst');
         $optionPos = strpos($result, 'key=value');
 
         $this->assertNotFalse($topicPos);
@@ -246,7 +246,7 @@ class SubscriptionUrlBuilderTest extends TestCase
         $result = SubscriptionUrlBuilder::build($hubUrl, $topics);
 
         $this->assertStringStartsWith('http://', $result);
-        $this->assertStringContainsString('topic=%2Flocal%2Ftopic', $result);
+        $this->assertStringContainsString('match=%2Flocal%2Ftopic', $result);
     }
 
     /**
@@ -261,14 +261,14 @@ class SubscriptionUrlBuilderTest extends TestCase
             'https://example.com/api/resources/*',
         ];
         $options = [
-            'lastEventID' => 'urn:uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+            'last_event_id' => 'urn:uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890',
         ];
 
         $result = SubscriptionUrlBuilder::build($hubUrl, $topics, $options);
 
-        $this->assertStringContainsString('topic=%2Fusers%2F123%2Fnotifications', $result);
-        $this->assertStringContainsString('topic=%2Fbooks%2F%7Bid%7D', $result);
-        $this->assertStringContainsString('topic=https%3A%2F%2Fexample.com%2Fapi%2Fresources%2F%2A', $result);
-        $this->assertStringContainsString('lastEventID=urn%3Auuid%3Aa1b2c3d4-e5f6-7890-abcd-ef1234567890', $result);
+        $this->assertStringContainsString('match=%2Fusers%2F123%2Fnotifications', $result);
+        $this->assertStringContainsString('match=%2Fbooks%2F%7Bid%7D', $result);
+        $this->assertStringContainsString('match=https%3A%2F%2Fexample.com%2Fapi%2Fresources%2F%2A', $result);
+        $this->assertStringContainsString('last_event_id=urn%3Auuid%3Aa1b2c3d4-e5f6-7890-abcd-ef1234567890', $result);
     }
 }

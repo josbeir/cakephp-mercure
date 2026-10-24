@@ -83,3 +83,35 @@ jobs:
 
       - name: Run Rector
         run: vendor/bin/rector process --dry-run
+
+  mercure-integration:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mercure-version: [v1.0.0, v1.1.4]
+    services:
+      mercure:
+        image: dunglas/mercure:${{ matrix.mercure-version }}
+        ports:
+          - 19081:80
+        env:
+          SERVER_NAME: ':80'
+          MERCURE_TRUSTED_ISSUERS: https://app.example.com
+          MERCURE_PUBLISHER_JWT_KEY: mercure-protocol-test-secret-at-least-32-bytes
+          MERCURE_SUBSCRIBER_JWT_KEY: mercure-protocol-test-secret-at-least-32-bytes
+          MERCURE_EXTRA_DIRECTIVES: |
+            resource_identifier http://127.0.0.1:19081/.well-known/mercure
+            cookie_name mercure_access_token
+            cors_origins http://127.0.0.1:19081
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: none
+      - run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Test strict Mercure 1.x publishing and private subscriptions
+        env:
+          MERCURE_TEST_URL: http://127.0.0.1:19081/.well-known/mercure
+        run: vendor/bin/phpunit tests/TestCase/MercureHubIntegrationTest.php

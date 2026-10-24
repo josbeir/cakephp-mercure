@@ -72,7 +72,13 @@ return [
             'algorithm' => 'HS256',
             'publish' => ['*'],
             'subscribe' => [],
-            'additional_claims' => [],
+            // Mercure requires iss (trusted hub issuer), sub and client_id.
+            // iat, exp (+1 hour) and jti are generated for each access token.
+            'additional_claims' => [
+                'iss' => env('MERCURE_JWT_ISSUER', ''),
+                'sub' => env('MERCURE_JWT_SUBJECT', ''),
+                'client_id' => env('MERCURE_JWT_CLIENT_ID', ''),
+            ],
         ],
 
         /**
@@ -100,7 +106,8 @@ return [
          * @see https://api.cakephp.org/5.0/class-Cake.Http.Cookie.Cookie.html
          */
         'cookie' => [
-            'name' => env('MERCURE_COOKIE_NAME', 'mercureAuthorization'),
+            // For HTTP development, configure a prefix-less name on both app and hub.
+            'name' => env('MERCURE_COOKIE_NAME', '__Secure-mercure_access_token'),
             'domain' => env('MERCURE_COOKIE_DOMAIN'),
             'secure' => env('MERCURE_COOKIE_SECURE', true),
             'httponly' => env('MERCURE_COOKIE_HTTPONLY', true),

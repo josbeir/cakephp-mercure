@@ -36,6 +36,7 @@ class AuthorizationTest extends TestCase
             'jwt' => [
                 'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
+                'additional_claims' => ['iss' => 'issuer', 'sub' => 'app', 'client_id' => 'tests'],
             ],
             'cookie' => [
                 'name' => 'testAuth',
@@ -92,10 +93,10 @@ class AuthorizationTest extends TestCase
         $service = Authorization::create();
         $config = $service->getCookieConfig();
 
-        $this->assertEquals('mercureAuthorization', $config['name']);
+        $this->assertEquals('__Secure-mercure_access_token', $config['name']);
         $this->assertNull($config['expires']);
         $this->assertEquals('/', $config['path']);
-        $this->assertFalse($config['secure']);
+        $this->assertTrue($config['secure']);
         $this->assertTrue($config['httponly']);
         $this->assertEquals(CookieInterface::SAMESITE_STRICT, $config['samesite']);
     }
@@ -143,7 +144,7 @@ class AuthorizationTest extends TestCase
      */
     public function testSetInstanceAllowsCustomInstance(): void
     {
-        $tokenFactory = new FirebaseTokenFactory('custom-secret-key-with-32-bytes-min!!', 'HS256');
+        $tokenFactory = new FirebaseTokenFactory('custom-secret-key-with-32-bytes-min!!', 'HS256', defaultClaims: ['iss' => 'issuer', 'aud' => 'hub', 'sub' => 'app', 'client_id' => 'tests']);
         $customService = new AuthorizationService($tokenFactory, ['name' => 'customCookie']);
 
         Authorization::setInstance($customService);
@@ -436,6 +437,7 @@ class AuthorizationTest extends TestCase
             'jwt' => [
                 'secret' => 'test-secret-key-with-32-bytes-minimum!!',
                 'algorithm' => 'HS256',
+                'additional_claims' => ['iss' => 'issuer', 'sub' => 'app', 'client_id' => 'tests'],
             ],
         ]);
         Authorization::clear();
